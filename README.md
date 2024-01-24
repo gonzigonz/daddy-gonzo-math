@@ -1,3 +1,7 @@
+# Daddy Gonzo Math
+This is a simple maths app designed for Elementary school kids. It was inspired from helping my daughters Bailey and Indiana with their 4th and 2nd grade homework.
+
+# Development
 This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
 
 ## Getting Started
@@ -29,8 +33,7 @@ To learn more about Next.js, take a look at the following resources:
 
 You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
 
-## Deploy on Vercel
+## Deployment
+This app is currently hosted using Github Pages at https://gonzigonz.github.io/daddy-gonzo-math/
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
+It is deployed via a [Github Action](./.github/workflows/nextjs.yml) upon changes to the `main` git branch.
