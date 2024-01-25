@@ -63,6 +63,8 @@ export default function Home() {
       setUserInput('');
       setCounter(0);
       setCard(cards[0]);
+    } else if (value == 'Del') {
+      setUserInput((prevInput) => prevInput.slice(0, -1));
     } else {
       if (userInput === "correct" || userInput === "wrong") {
         return;
@@ -99,7 +101,7 @@ export default function Home() {
     '7', '8', '9',
     '4', '5', '6',
     '1', '2', '3',
-    'AC', '0'
+    'AC', '0', 'Del'
   ]
 
   return (
