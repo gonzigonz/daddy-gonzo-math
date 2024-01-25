@@ -70,6 +70,7 @@ export default function Home() {
 
       const newValue = userInput + value;
       setUserInput(newValue);
+      await new Promise(f => setTimeout(f, 300));
 
       const correctAnswer = eval(card.expression).toString();
       if (newValue.length === correctAnswer.length) {
