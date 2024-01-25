@@ -20,7 +20,7 @@ class Card {
       case "fail":
         return "text-red-600 bg-red-100";
       default:
-        return "text-grey-600 bg-grey-100";
+        return "text-sky-500 bg-sky-50";
     }
   }
   icon() {
@@ -54,8 +54,8 @@ export default function Home() {
 
   const handleButtonClick = async (value: string) => {
     if (value === 'AC') {
-      setUserInput('Resetting...');
-      await new Promise(f => setTimeout(f, 1000));
+      setUserInput('clearing...');
+      await new Promise(f => setTimeout(f, 500));
 
       for (var c of cards) {
         c.status = "";
@@ -102,9 +102,9 @@ export default function Home() {
   ]
 
   return (
-    <main className="flex min-h-screen flex-col items-center p-24">
-      <h1 className="text-4xl mb-10 font-bold">DADDY GONZO MATH</h1>
-      <div className="bg-white p-6 rounded-lg shadow-lg">
+    <main className="flex min-h-screen flex-col items-center py-4 px-4 sm:p-6 md:py-10 md:px-8">
+      <h1 className="text-white text-3xl sm:text-4xl md:text-5xl lg:text-6xl mb-4 sm:mb-6 md:mb-8 lg:mb-10 font-bold font-mono">DADDY GONZO MATH</h1>
+      <div id="app" className="p-6 sm:p-12 md:px-24 lg:px-36 mx-2 sm:mx-20 md:mx-24 lg:mx-30 rounded-lg shadow-lg">
         <div className="grid grid-cols-12">
           {cards.map((card, index) => (
             <button
@@ -115,13 +115,13 @@ export default function Home() {
         </div>
         <input
           type="text"
-          className="w-full mb-2 text-3xl border-b-2 border-gray-400 focus:outline-none"
+          className="w-full text-sky-500 text-3xl text-center my-2 border-2 border-sky-400 rounded-lg focus:outline-none"
           value={card.expression}
           readOnly
         />
-        <input
+         <input
           type="text"
-          className="w-full mb-4 text-4xl font-bold focus-outline"
+          className="w-full text-sky-500 text-3xl text-center my-2 border-2 border-sky-400 rounded-lg focus:outline-none"
           value={userInput}
           readOnly
         />
@@ -130,7 +130,7 @@ export default function Home() {
             <button
               key={btn}
               onClick={() => handleButtonClick(btn)}
-              className="text-4xl bg-gray-300 hover:bg-gray-400 p-2 rounded-lg"
+              className="text-sky-600 text-3xl bg-sky-200 hover:bg-sky-300 p-2 rounded-lg"
             >{btn}</button>
           ))}
         </div>
