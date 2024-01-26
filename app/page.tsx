@@ -11,45 +11,63 @@ const CROSS_MARK = "\u2717";
 const DEL_SYMBOL = "\u232b";
 const REFRESH_SYMBOL = "\u21bb";
 
+interface IOperator {
+  name: string;
+  textColor: string;
+  calculate: (a: number, b: number) => string;
+}
+
+class AddOperator implements IOperator {
+  readonly name: string;
+  readonly textColor: string;
+  constructor() {
+    this.name = "+";
+    this.textColor = "text-yellow-500";
+  }
+  calculate = (a: number, b: number) => { return (a + b).toString(); }
+}
+
+class MinusOperator implements IOperator {
+  readonly name: string;
+  readonly textColor: string;
+  constructor() {
+    this.name = "-";
+    this.textColor = "text-indigo-500";
+  }
+  calculate = (a: number, b: number) => { return (a - b).toString(); }
+}
+
+class TimesOperator implements IOperator {
+  readonly name: string;
+  readonly textColor: string;
+  constructor() {
+    this.name = "x";
+    this.textColor = "text-indigo-500";
+  }
+  calculate = (a: number, b: number) => { return (a * b).toString(); }
+}
+
+const operations: { [key: string]:IOperator } = {
+  '+': new AddOperator(),
+  '-': new MinusOperator(),
+  'x': new TimesOperator(),
+}
+
 class Card {
-  readonly term1: number
-  readonly term2: number
-  operator: string = ""
-  status: string = ""
+  readonly term1: number;
+  readonly term2: number;
+  operatorName: string = "";
+  status: string = "";
 
-  constructor(first_term: number, second_term: number, op: string) {
-    this.term1 = first_term;
-    this.term2 = second_term;
-    this.reinitialize(op);
+  constructor(firstTerm: number, secondTerm: number, opName: string) {
+    this.term1 = firstTerm;
+    this.term2 = secondTerm;
+    this.reinitialize(opName);
   }
 
-  reinitialize(op: string) {
-    this.operator = op;
+  reinitialize(opName: string) {
+    this.operatorName = opName;
     this.status = "";
-  }
-
-  expression(): string {
-    // the express should be in a human readable form.
-    let h: string = this.operator === "*"? "x" : this.operator;
-    return `${this.term1} ${h} ${this.term2} =`;
-  }
-
-  correctAnswer(): string {
-    let ans: number;
-    switch (this.operator) {
-      case "+":
-        ans = this.term1 + this.term2;
-        break;
-      case "-":
-        ans = this.term1 - this.term2;
-        break;
-      case "*":
-        ans = this.term1 * this.term2;
-        break;
-      default:
-        ans = NaN;
-    }
-    return ans.toString();
   }
 
   className(): string {
@@ -75,19 +93,19 @@ class Card {
   }
 }
 
-let countOfFactors = 0;
+let totalCards = 0;
 const cards: Card[] = [];
 const factors = [2, 3, 4, 5, 6, 8];
 for (let f of factors) {
   for (let i = 1; i < 13; i++) {
-    cards[countOfFactors] = new Card(f, i, "+");
-    countOfFactors++;
+    cards[totalCards] = new Card(f, i, "+");
+    totalCards++;
   }
 }
-countOfFactors;
+totalCards;
 
 export default function Home() {
-  const [operation, setOperation] = useState('+');
+  const [operation, setOperation] = useState(operations['+']);
   const [userInput, setUserInput] = useState('');
   const [counter, setCounter] = useState(0)
   const [card, setCard] = useState(cards[0]);
@@ -95,7 +113,7 @@ export default function Home() {
   const handleButtonClick = async (value: string) => {
     if (value === REFRESH_SYMBOL) {
       for (var c of cards) {
-        c.reinitialize(c.operator)
+        c.reinitialize(c.operatorName)
       }
       setUserInput('');
       setCounter(0);
@@ -111,9 +129,10 @@ export default function Home() {
       setUserInput(newValue);
       await new Promise(f => setTimeout(f, 300));
 
-      if (newValue.length === card.correctAnswer().length) {
+      let answer = operation.calculate(card.term1, card.term2)
+      if (newValue.length === answer.length) {
         try {
-          if (newValue === card.correctAnswer()) {
+          if (newValue === answer) {
             card.status = "pass";
             setUserInput(TICK_MARK);
           } else {
@@ -123,7 +142,7 @@ export default function Home() {
           await new Promise(f => setTimeout(f, 500));
 
           setUserInput('');
-          let nextIndex = counter === countOfFactors - 1 ? 0 : counter + 1;
+          let nextIndex = counter === totalCards - 1 ? 0 : counter + 1;
           setCounter(nextIndex)
           setCard(cards[nextIndex]);
         } catch (error) {
@@ -137,7 +156,7 @@ export default function Home() {
     for (var c of cards) {
       c.reinitialize(op);
     }
-    setOperation(op);
+    setOperation(operations[op]);
     setUserInput('');
     setCounter(0);
     setCard(cards[0]);
@@ -147,24 +166,6 @@ export default function Home() {
     setUserInput('');
     setCounter(cardIndex);
     setCard(cards[cardIndex]);
-  }
-
-  const inputClassName = (colSpan:string ):string => {
-    let testColor: string;
-    switch (operation) {
-      case "+":
-        testColor = "text-yellow-500";
-        break;
-      case "-":
-        testColor = "text-indigo-500";
-        break;
-      case "*":
-        testColor = "text-teal-500";
-        break;
-      default:
-        testColor = "text-black";
-    }
-    return `${testColor} text-4xl text-center ${colSpan} rounded-lg focus:outline-none`
   }
 
   const buttons = [
@@ -191,7 +192,7 @@ export default function Home() {
           >-</button>
           <button
             key="times-button"
-            onClick={() => handleOperationButtonClick("*")}
+            onClick={() => handleOperationButtonClick("x")}
             className="text-xl text-sky-500 bg-sky-500/25 hover:bg-sky-200/25 rounded-lg"
           >x</button>
           <button
@@ -212,13 +213,13 @@ export default function Home() {
         <div className="grid grid-cols-3 gap-2 my-2">
           <input
             type="text"
-            className={inputClassName("col-span-2")}
-            value={card.expression()}
+            className={`${operation.textColor} text-4xl text-center col-span-2 rounded-lg focus:outline-none`}
+            value={`${card.term1} ${card.operatorName} ${card.term2}`}
             readOnly
           />
           <input
             type="text"
-            className={inputClassName("")}
+            className={`${operation.textColor} text-4xl text-center rounded-lg focus:outline-none`}
             value={userInput}
             readOnly
           />
