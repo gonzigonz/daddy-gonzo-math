@@ -9,7 +9,7 @@ import { useState } from "react"
 const TICK_MARK = "\u2713";
 const CROSS_MARK = "\u2717";
 const DEL_SYMBOL = "\u232b";
-const ROTATE_SYMBOL = "\u21bb";
+const REFRESH_SYMBOL = "\u21bb";
 
 class Card {
   readonly term1: number
@@ -29,17 +29,22 @@ class Card {
   }
 
   expression(): string {
-    return `${this.term1} ${this.operator === "+" ? "+" : "x"} ${this.term2} =`;
+    // the express should be in a human readable form.
+    let h: string = this.operator === "*"? "x" : this.operator;
+    return `${this.term1} ${h} ${this.term2} =`;
   }
 
   correctAnswer(): string {
     let ans: number;
     switch (this.operator) {
-      case "*":
-        ans = this.term1 * this.term2;
-        break;
       case "+":
         ans = this.term1 + this.term2;
+        break;
+      case "-":
+        ans = this.term1 - this.term2;
+        break;
+      case "*":
+        ans = this.term1 * this.term2;
         break;
       default:
         ans = NaN;
@@ -50,11 +55,11 @@ class Card {
   className(): string {
     switch (this.status) {
       case "pass":
-        return "text-green-500 bg-green-500/25";
+        return "text-green-500 bg-green-500/25 hover:bg-sky-200/25";
       case "fail":
-        return "text-red-500 bg-red-500/25";
+        return "text-red-500 bg-red-500/25 hover:bg-sky-200/25 ";
       default:
-        return "text-sky-500/50";
+        return "text-sky-500/50 hover:bg-sky-200/25 ";
     }
   }
 
@@ -88,7 +93,7 @@ export default function Home() {
   const [card, setCard] = useState(cards[0]);
 
   const handleButtonClick = async (value: string) => {
-    if (value === ROTATE_SYMBOL) {
+    if (value === REFRESH_SYMBOL) {
       for (var c of cards) {
         c.reinitialize(c.operator)
       }
@@ -129,11 +134,10 @@ export default function Home() {
   }
 
   const handleOperationButtonClick = (op: string) => {
-    let newOperator = op === "+" ? "*" : "+";
     for (var c of cards) {
-      c.reinitialize(newOperator);
+      c.reinitialize(op);
     }
-    setOperation(op === "+" ? "x" : "+");
+    setOperation(op);
     setUserInput('');
     setCounter(0);
     setCard(cards[0]);
@@ -146,7 +150,20 @@ export default function Home() {
   }
 
   const inputClassName = (colSpan:string ):string => {
-    let testColor = operation === "+" ? "text-yellow-500": "text-teal-500";
+    let testColor: string;
+    switch (operation) {
+      case "+":
+        testColor = "text-yellow-500";
+        break;
+      case "-":
+        testColor = "text-indigo-500";
+        break;
+      case "*":
+        testColor = "text-teal-500";
+        break;
+      default:
+        testColor = "text-black";
+    }
     return `${testColor} text-4xl text-center ${colSpan} rounded-lg focus:outline-none`
   }
 
@@ -154,14 +171,36 @@ export default function Home() {
     '7', '8', '9',
     '4', '5', '6',
     '1', '2', '3',
-    ROTATE_SYMBOL, '0', DEL_SYMBOL
+    '-', '0', DEL_SYMBOL
   ]
 
   return (
     <main className="flex min-h-screen flex-col items-center py-4 px-4 sm:p-6 md:py-10 md:px-8">
       <h1 className="text-white text-3xl sm:text-4xl md:text-5xl lg:text-6xl mb-4 sm:mb-6 md:mb-8 lg:mb-10 font-bold font-mono">DADDY GONZO MATH</h1>
       <div id="app" className="p-6 sm:p-12 md:px-24 lg:px-36 mx-2 sm:mx-20 md:mx-24 lg:mx-30 shadow-lg">
-        <div className="grid grid-cols-12">
+        <div className="grid grid-cols-4 gap-2 my-2">
+          <button
+            key="plus-button"
+            onClick={() => handleOperationButtonClick("+")}
+            className="text-2xl text-sky-500 bg-sky-500/25 hover:bg-sky-200/25 rounded-lg"
+          >+</button>
+          <button
+            key="minus-button"
+            onClick={() => handleOperationButtonClick("-")}
+            className="text-2xl text-sky-500 bg-sky-500/25 hover:bg-sky-200/25 rounded-lg"
+          >-</button>
+          <button
+            key="times-button"
+            onClick={() => handleOperationButtonClick("*")}
+            className="text-xl text-sky-500 bg-sky-500/25 hover:bg-sky-200/25 rounded-lg"
+          >x</button>
+          <button
+            key="refresh-button"
+            onClick={() => handleButtonClick(REFRESH_SYMBOL)}
+            className="text-2xl text-sky-500 bg-sky-500/25 hover:bg-sky-200/25 rounded-lg"
+          >{REFRESH_SYMBOL}</button>
+        </div>
+        <div className="grid grid-cols-12 mt-6">
           {cards.map((c, index) => (
             <button
               key={index}
@@ -170,31 +209,26 @@ export default function Home() {
             >{c.icon()}</button>
           ))}
         </div>
-        <div className="grid grid-cols-6 gap-2 my-2">
+        <div className="grid grid-cols-3 gap-2 my-2">
           <input
             type="text"
-            className={inputClassName("col-span-3")}
+            className={inputClassName("col-span-2")}
             value={card.expression()}
             readOnly
           />
           <input
             type="text"
-            className={inputClassName("col-span-2")}
+            className={inputClassName("")}
             value={userInput}
             readOnly
           />
-          <button
-            key="opButton"
-            onClick={() => handleOperationButtonClick(operation)}
-            className="text-sky-500 bg-sky-500/25 hover:bg-sky-200/25 rounded-lg"
-          >+ \ x</button>
         </div>
         <div className="grid grid-cols-3 gap-2">
           {buttons.map((btn) => (
             <button
               key={btn}
               onClick={() => handleButtonClick(btn)}
-              className="text-3xl text-sky-600 bg-sky-200 hover:bg-sky-300 rounded-lg"
+              className="text-4xl text-sky-600 bg-sky-200 hover:bg-sky-300 rounded-lg"
             >{btn}</button>
           ))}
         </div>
