@@ -139,6 +139,12 @@ export default function Home() {
     setCard(cards[0]);
   }
 
+  const handleCardButtonClick = (cardIndex: number) => {
+    setUserInput('');
+    setCounter(cardIndex);
+    setCard(cards[cardIndex]);
+  }
+
   const inputClassName = (colSpan:string ):string => {
     let testColor = operation === "+" ? "text-yellow-500": "text-teal-500";
     return `${testColor} text-4xl text-center ${colSpan} rounded-lg focus:outline-none`
@@ -159,6 +165,7 @@ export default function Home() {
           {cards.map((c, index) => (
             <button
               key={index}
+              onClick={() => handleCardButtonClick(index)}
               className={c.className()}
             >{c.icon()}</button>
           ))}
