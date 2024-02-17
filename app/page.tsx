@@ -209,16 +209,18 @@ export default function Home() {
             >{btn}</button>
           ))}
         </div>
-        <div>
-          <ul>
-            {flashcards.map((c, index) => (
-              <li
-                key={"item-" + index}
-              >{`${c.expression()} ${c.status}`}</li>
-            ))}
-          </ul>
-        </div>
       </div>
     </main>
   );
 }
+
+// Useful for debugging 
+{/* <div>
+  <ul>
+    {flashcards.map((c, index) => (
+      <li
+        key={"item-" + index}
+      >{`${c.expression()} ${c.status}`}</li>
+    ))}
+  </ul>
+</div> */}
