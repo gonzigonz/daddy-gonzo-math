@@ -1,7 +1,11 @@
 'use client'
 import { useState } from "react"
-// import Image from "next/image";
+import { ICard } from "./flash_cards/card"
+import { additionCards } from "./flash_cards/addition_cards";
+import { subtractionCards } from "./flash_cards/subtraction_cards";
+import { multiplicationCards } from "./flash_cards/multiplication_cards";
 
+// import Image from "next/image";
 // const config = require('../next.config')
 // const vercel_svg_path = `${config.basePath}/vercel.svg`
 // const next_svg_path = `${config.basePath}/next.svg`
@@ -11,113 +15,72 @@ const CROSS_MARK = "\u2717";
 const DEL_SYMBOL = "\u232b";
 const REFRESH_SYMBOL = "\u21bb";
 
-interface IOperator {
+interface IOperation {
   name: string;
   textColor: string;
-  calculate: (a: number, b: number) => string;
 }
 
-class AddOperator implements IOperator {
+class AddOperation implements IOperation {
   readonly name: string;
   readonly textColor: string;
   constructor() {
     this.name = "+";
     this.textColor = "text-yellow-500";
   }
-  calculate = (a: number, b: number) => { return (a + b).toString(); }
 }
 
-class MinusOperator implements IOperator {
+class MinusOperation implements IOperation {
   readonly name: string;
   readonly textColor: string;
   constructor() {
     this.name = "-";
     this.textColor = "text-indigo-500";
   }
-  calculate = (a: number, b: number) => { return (a - b).toString(); }
 }
 
-class TimesOperator implements IOperator {
+class TimesOperation implements IOperation {
   readonly name: string;
   readonly textColor: string;
   constructor() {
     this.name = "x";
     this.textColor = "text-indigo-500";
   }
-  calculate = (a: number, b: number) => { return (a * b).toString(); }
 }
 
-const operations: { [key: string]:IOperator } = {
-  '+': new AddOperator(),
-  '-': new MinusOperator(),
-  'x': new TimesOperator(),
+const operations: { [key: string]:IOperation } = {
+  '+': new AddOperation(),
+  '-': new MinusOperation(),
+  'x': new TimesOperation(),
 }
 
-class Card {
-  readonly term1: number;
-  readonly term2: number;
-  operatorName: string = "";
-  status: string = "";
-
-  constructor(firstTerm: number, secondTerm: number, opName: string) {
-    this.term1 = firstTerm;
-    this.term2 = secondTerm;
-    this.reinitialize(opName);
-  }
-
-  reinitialize(opName: string) {
-    this.operatorName = opName;
-    this.status = "";
-  }
-
-  className(): string {
-    switch (this.status) {
-      case "pass":
-        return "text-green-500 bg-green-500/25 hover:bg-sky-200/25";
-      case "fail":
-        return "text-red-500 bg-red-500/25 hover:bg-sky-200/25 ";
-      default:
-        return "text-sky-500/50 hover:bg-sky-200/25 ";
-    }
-  }
-
-  icon(): string {
-    switch (this.status) {
-      case "pass":
-        return TICK_MARK;
-      case "fail":
-        return CROSS_MARK;
-      default:
-        return "-";
-    }
-  }
+const allFlashcardsMap: { [key: string]:ICard[]} = {
+  '+': additionCards,
+  '-': subtractionCards,
+  'x': multiplicationCards, 
 }
 
-let totalCards = 0;
-const cards: Card[] = [];
-const factors = [2, 3, 4, 5, 6, 8];
-for (let f of factors) {
-  for (let i = 1; i < 13; i++) {
-    cards[totalCards] = new Card(f, i, "+");
-    totalCards++;
-  }
-}
-totalCards;
+additionCards[0].status = "pending";
+
 
 export default function Home() {
-  const [operation, setOperation] = useState(operations['+']);
+  const [operationName, setOperationName] = useState('+');
   const [userInput, setUserInput] = useState('');
   const [counter, setCounter] = useState(0)
-  const [card, setCard] = useState(cards[0]);
+  const [flashcards, setFlashCards] = useState(allFlashcardsMap['+'])
+  const [card, setCard] = useState(allFlashcardsMap['+'][0]);
 
   const handleButtonClick = async (value: string) => {
     if (value === REFRESH_SYMBOL) {
-      for (var c of cards) {
-        c.reinitialize(c.operatorName)
+      setUserInput("refreshing...");
+      await new Promise(f => setTimeout(f, 300));
+
+      for (var c of flashcards) {
+        c.clearStatus();
       }
+      flashcards[0].status = "pending";
       setUserInput('');
       setCounter(0);
-      setCard(cards[0]);
+      setCard(flashcards[0]);
     } else if (value == DEL_SYMBOL) {
       setUserInput((prevInput) => prevInput.slice(0, -1));
     } else {
@@ -125,14 +88,14 @@ export default function Home() {
         return;
       }
 
-      const newValue = userInput + value;
-      setUserInput(newValue);
+      const userAnswer = userInput + value;
+      setUserInput(userAnswer);
       await new Promise(f => setTimeout(f, 300));
 
-      let answer = operation.calculate(card.term1, card.term2)
-      if (newValue.length === answer.length) {
+      let answer = card.answer()
+      if (userAnswer.length === answer.length) {
         try {
-          if (newValue === answer) {
+          if (userAnswer === answer) {
             card.status = "pass";
             setUserInput(TICK_MARK);
           } else {
@@ -142,9 +105,10 @@ export default function Home() {
           await new Promise(f => setTimeout(f, 500));
 
           setUserInput('');
-          let nextIndex = counter === totalCards - 1 ? 0 : counter + 1;
+          let nextIndex = counter === flashcards.length - 1 ? 0 : counter + 1;
+          flashcards[nextIndex].status = "pending";
           setCounter(nextIndex)
-          setCard(cards[nextIndex]);
+          setCard(flashcards[nextIndex]);
         } catch (error) {
           setUserInput("Error");
         }
@@ -153,19 +117,20 @@ export default function Home() {
   }
 
   const handleOperationButtonClick = (op: string) => {
-    for (var c of cards) {
-      c.reinitialize(op);
-    }
-    setOperation(operations[op]);
+    card.status = "";
+    allFlashcardsMap[op][counter].status = "pending";
+    setOperationName(op);
     setUserInput('');
-    setCounter(0);
-    setCard(cards[0]);
+    setFlashCards(allFlashcardsMap[op]);
+    setCard(allFlashcardsMap[op][counter]);
   }
 
   const handleCardButtonClick = (cardIndex: number) => {
+    card.status = "";
+    flashcards[cardIndex].status = "pending";
     setUserInput('');
     setCounter(cardIndex);
-    setCard(cards[cardIndex]);
+    setCard(flashcards[cardIndex]);
   }
 
   const buttons = [
@@ -174,6 +139,17 @@ export default function Home() {
     '1', '2', '3',
     '-', '0', DEL_SYMBOL
   ]
+
+  const statusIcon = (status: string): string => {
+      switch (status) {
+        case "pass":
+          return TICK_MARK;
+        case "fail":
+          return CROSS_MARK;
+        default:
+          return "-";
+      }
+  }
 
   return (
     <main className="flex min-h-screen flex-col items-center py-4 px-4 sm:p-6 md:py-10 md:px-8">
@@ -202,24 +178,24 @@ export default function Home() {
           >{REFRESH_SYMBOL}</button>
         </div>
         <div className="grid grid-cols-12 mt-6">
-          {cards.map((c, index) => (
+          {flashcards.map((c, index) => (
             <button
               key={index}
               onClick={() => handleCardButtonClick(index)}
               className={c.className()}
-            >{c.icon()}</button>
+            >{ statusIcon(c.status) }</button>
           ))}
         </div>
         <div className="grid grid-cols-3 gap-2 my-2">
           <input
             type="text"
-            className={`${operation.textColor} text-4xl text-center col-span-2 rounded-lg focus:outline-none`}
-            value={`${card.term1} ${card.operatorName} ${card.term2}`}
+            className={`${operations[operationName].textColor} text-4xl text-center col-span-2 rounded-lg focus:outline-none`}
+            value={ card.expression() }
             readOnly
           />
           <input
             type="text"
-            className={`${operation.textColor} text-4xl text-center rounded-lg focus:outline-none`}
+            className={`${operations[operationName].textColor} text-4xl text-center rounded-lg focus:outline-none`}
             value={userInput}
             readOnly
           />
@@ -232,6 +208,15 @@ export default function Home() {
               className="text-4xl text-sky-600 bg-sky-200 hover:bg-sky-300 rounded-lg"
             >{btn}</button>
           ))}
+        </div>
+        <div>
+          <ul>
+            {flashcards.map((c, index) => (
+              <li
+                key={"item-" + index}
+              >{`${c.expression()} ${c.status}`}</li>
+            ))}
+          </ul>
         </div>
       </div>
     </main>
