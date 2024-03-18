@@ -34,11 +34,22 @@ export default class MultiplicationCard implements ICard {
   }
 
 export const multiplicationCards: ICard[] = [];
+const factors: number[] = [7, 12, 11, 9];
+const secondTerms: number[] = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+
+for (let i = factors.length -1; i > 0; i--) {
+  const j = Math.floor(Math.random() * (i + 1));
+  [factors[i], factors[j]] = [factors[j], factors[i]];
+}
+for (let i = secondTerms.length -1; i > 0; i--) {
+  const j = Math.floor(Math.random() * (i + 1));
+  [secondTerms[i], secondTerms[j]] = [secondTerms[j], secondTerms[i]];
+}
+
 let idx: number = 0;
-const factors = [2, 3, 4, 5, 6, 8];
 for (let f of factors) {
-  for (let i = 1; i < 13; i++) {
-    multiplicationCards[idx] = new MultiplicationCard(f, i);
+  for (let s of secondTerms) {
+    multiplicationCards[idx] = new MultiplicationCard(f, s);
     idx++;
   }
 }
