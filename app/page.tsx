@@ -106,7 +106,9 @@ export default function Home() {
 
           setUserInput('');
           let nextIndex = counter === flashcards.length - 1 ? 0 : counter + 1;
-          flashcards[nextIndex].status = "pending";
+          if (!flashcards[nextIndex].status) {
+            flashcards[nextIndex].status = "pending";
+          }
           setCounter(nextIndex)
           setCard(flashcards[nextIndex]);
         } catch (error) {
@@ -126,7 +128,9 @@ export default function Home() {
   }
 
   const handleCardButtonClick = (cardIndex: number) => {
-    card.status = "";
+    if (card.status === "pending") {
+      card.status = "";
+    }
     flashcards[cardIndex].status = "pending";
     setUserInput('');
     setCounter(cardIndex);
