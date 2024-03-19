@@ -61,17 +61,26 @@ const allFlashcardsMap: { [key: string]:ICard[]} = {
 
 additionCards[0].status = "pending";
 
+let count = 1;
+let totalTime = 0;
+let elapsedTime: number;
+let startTime = new Date().getTime();
+
 
 export default function Home() {
+  const [score, setScore] = useState(0);
+  const [avgTime, setAvgTime] = useState(0);
   const [operationName, setOperationName] = useState('+');
   const [userInput, setUserInput] = useState('');
-  const [counter, setCounter] = useState(0)
+  const [index, setIndex] = useState(0)
   const [flashcards, setFlashCards] = useState(allFlashcardsMap['+'])
   const [card, setCard] = useState(allFlashcardsMap['+'][0]);
 
   const handleButtonClick = async (value: string) => {
     if (value === REFRESH_SYMBOL) {
-      setUserInput("refreshing...");
+      setScore(0);
+      setAvgTime(0);
+      setUserInput("");
       await new Promise(f => setTimeout(f, 300));
 
       for (var c of flashcards) {
@@ -79,8 +88,11 @@ export default function Home() {
       }
       flashcards[0].status = "pending";
       setUserInput('');
-      setCounter(0);
+      setIndex(0);
       setCard(flashcards[0]);
+
+      startTime = new Date().getTime();
+      count++;
     } else if (value == DEL_SYMBOL) {
       setUserInput((prevInput) => prevInput.slice(0, -1));
     } else {
@@ -90,29 +102,37 @@ export default function Home() {
 
       const userAnswer = userInput + value;
       setUserInput(userAnswer);
-      await new Promise(f => setTimeout(f, 300));
 
       let answer = card.answer()
       if (userAnswer.length === answer.length) {
+        await new Promise(f => setTimeout(f, 300));
+        elapsedTime = new Date().getTime() - startTime - 300;
         try {
           if (userAnswer === answer) {
             card.status = "pass";
             setUserInput(TICK_MARK);
+            setScore(score + 1);
+            totalTime = totalTime + elapsedTime;
+            setAvgTime(Math.round(totalTime / count))
           } else {
             card.status = "fail";
             setUserInput(CROSS_MARK);
+            setScore(score - 1);
           }
-          await new Promise(f => setTimeout(f, 500));
+          await new Promise(f => setTimeout(f, 300));
 
           setUserInput('');
-          let nextIndex = counter === flashcards.length - 1 ? 0 : counter + 1;
+          let nextIndex = index === flashcards.length - 1 ? 0 : index + 1;
           if (!flashcards[nextIndex].status) {
             flashcards[nextIndex].status = "pending";
           }
-          setCounter(nextIndex)
+          setIndex(nextIndex)
           setCard(flashcards[nextIndex]);
         } catch (error) {
           setUserInput("Error");
+        } finally {
+          startTime = new Date().getTime();
+          count++;
         }
       }
     }
@@ -120,11 +140,12 @@ export default function Home() {
 
   const handleOperationButtonClick = (op: string) => {
     card.status = "";
-    allFlashcardsMap[op][counter].status = "pending";
+    allFlashcardsMap[op][index].status = "pending";
     setOperationName(op);
     setUserInput('');
     setFlashCards(allFlashcardsMap[op]);
-    setCard(allFlashcardsMap[op][counter]);
+    setCard(allFlashcardsMap[op][index]);
+    startTime = new Date().getTime();
   }
 
   const handleCardButtonClick = (cardIndex: number) => {
@@ -133,8 +154,9 @@ export default function Home() {
     }
     flashcards[cardIndex].status = "pending";
     setUserInput('');
-    setCounter(cardIndex);
+    setIndex(cardIndex);
     setCard(flashcards[cardIndex]);
+    startTime = new Date().getTime();
   }
 
   const buttons = [
@@ -159,7 +181,11 @@ export default function Home() {
     <main className="flex min-h-screen flex-col items-center py-4 px-4 sm:p-6 md:py-10 md:px-8">
       <h1 className="text-white text-3xl sm:text-4xl md:text-5xl lg:text-6xl mb-4 sm:mb-6 md:mb-8 lg:mb-10 font-bold font-mono">DADDY GONZO MATH</h1>
       <div id="app" className="p-6 sm:p-12 md:px-24 lg:px-36 mx-2 sm:mx-20 md:mx-24 lg:mx-30 shadow-lg">
-        <div className="grid grid-cols-4 gap-2 my-2">
+        <div className="grid grid-cols-2 gap-2">
+          <p className="text-center text-white bg-pink-400">Score: {score}</p>
+          <p className="text-center text-white bg-pink-600">Avg Time: {avgTime/1000}s</p>
+        </div>
+        <div className="grid col-start-2 grid-cols-4 gap-2 my-2">
           <button
             key="plus-button"
             onClick={() => handleOperationButtonClick("+")}
