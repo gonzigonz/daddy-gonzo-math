@@ -1,9 +1,8 @@
 'use client'
 import { useState } from "react"
 import { ICard } from "./flash_cards/card"
-import { additionCards } from "./flash_cards/addition_cards";
-import { subtractionCards } from "./flash_cards/subtraction_cards";
-import { multiplicationCards } from "./flash_cards/multiplication_cards";
+import { baileysCards } from "./flash_cards/bailey";
+import { indianasCards } from "./flash_cards/indiana";
 
 // import Image from "next/image";
 // const config = require('../next.config')
@@ -15,51 +14,40 @@ const CROSS_MARK = "\u2717";
 const DEL_SYMBOL = "\u232b";
 const REFRESH_SYMBOL = "\u21bb";
 
-interface IOperation {
+interface IFlashcardStack {
   name: string;
   textColor: string;
+  flashcards: ICard[];
 }
 
-class AddOperation implements IOperation {
+class IndianasFlashcards implements IFlashcardStack {
   readonly name: string;
   readonly textColor: string;
+  readonly flashcards: ICard[];
   constructor() {
-    this.name = "+";
+    this.name = "indy";
     this.textColor = "text-yellow-500";
+    this.flashcards = indianasCards;
   }
 }
 
-class MinusOperation implements IOperation {
+class BaileysFlashcards implements IFlashcardStack {
   readonly name: string;
   readonly textColor: string;
+  readonly flashcards: ICard[];
   constructor() {
-    this.name = "-";
+    this.name = "bailey";
     this.textColor = "text-indigo-500";
+    this.flashcards = baileysCards;
   }
 }
 
-class TimesOperation implements IOperation {
-  readonly name: string;
-  readonly textColor: string;
-  constructor() {
-    this.name = "x";
-    this.textColor = "text-indigo-500";
-  }
+const stacks: { [key: string]: IFlashcardStack } = {
+  'indy': new IndianasFlashcards(),
+  'bailey': new BaileysFlashcards(),
 }
 
-const operations: { [key: string]:IOperation } = {
-  '+': new AddOperation(),
-  '-': new MinusOperation(),
-  'x': new TimesOperation(),
-}
-
-const allFlashcardsMap: { [key: string]:ICard[]} = {
-  '+': additionCards,
-  '-': subtractionCards,
-  'x': multiplicationCards, 
-}
-
-additionCards[0].status = "pending";
+stacks["indy"].flashcards[0].status = "pending";
 
 let count = 1;
 let totalTime = 0;
@@ -70,11 +58,11 @@ let startTime = new Date().getTime();
 export default function Home() {
   const [score, setScore] = useState(0);
   const [avgTime, setAvgTime] = useState(0);
-  const [operationName, setOperationName] = useState('+');
+  const [stackName, setStackName] = useState('indy');
   const [userInput, setUserInput] = useState('');
   const [index, setIndex] = useState(0)
-  const [flashcards, setFlashCards] = useState(allFlashcardsMap['+'])
-  const [card, setCard] = useState(allFlashcardsMap['+'][0]);
+  const [flashcards, setFlashCards] = useState(stacks['indy'].flashcards)
+  const [card, setCard] = useState(stacks['indy'].flashcards[0]);
 
   const handleButtonClick = async (value: string) => {
     if (value === REFRESH_SYMBOL) {
@@ -138,13 +126,13 @@ export default function Home() {
     }
   }
 
-  const handleOperationButtonClick = (op: string) => {
+  const handleStackButtonClick = (name: string) => {
     card.status = "";
-    allFlashcardsMap[op][index].status = "pending";
-    setOperationName(op);
+    stacks[name].flashcards[index].status = "pending";
+    setStackName(name);
     setUserInput('');
-    setFlashCards(allFlashcardsMap[op]);
-    setCard(allFlashcardsMap[op][index]);
+    setFlashCards(stacks[name].flashcards);
+    setCard(stacks[name].flashcards[index]);
     startTime = new Date().getTime();
   }
 
@@ -167,14 +155,14 @@ export default function Home() {
   ]
 
   const statusIcon = (status: string): string => {
-      switch (status) {
-        case "pass":
-          return TICK_MARK;
-        case "fail":
-          return CROSS_MARK;
-        default:
-          return "-";
-      }
+    switch (status) {
+      case "pass":
+        return TICK_MARK;
+      case "fail":
+        return CROSS_MARK;
+      default:
+        return "-";
+    }
   }
 
   return (
@@ -183,24 +171,19 @@ export default function Home() {
       <div id="app" className="p-6 sm:p-12 md:px-24 lg:px-36 mx-2 sm:mx-20 md:mx-24 lg:mx-30 shadow-lg">
         <div className="grid grid-cols-2 gap-2">
           <p className="text-center text-white bg-pink-400">Score: {score}</p>
-          <p className="text-center text-white bg-pink-600">Avg Time: {avgTime/1000}s</p>
+          <p className="text-center text-white bg-pink-600">Avg Time: {avgTime / 1000}s</p>
         </div>
-        <div className="grid col-start-2 grid-cols-4 gap-2 my-2">
+        <div className="grid col-start-2 grid-cols-3 gap-2 my-2">
           <button
-            key="plus-button"
-            onClick={() => handleOperationButtonClick("+")}
+            key="indy-button"
+            onClick={() => handleStackButtonClick("indy")}
             className="text-2xl text-sky-500 bg-sky-500/25 hover:bg-sky-200/25 rounded-lg"
-          >+</button>
+          >Indy</button>
           <button
-            key="minus-button"
-            onClick={() => handleOperationButtonClick("-")}
+            key="bailey-button"
+            onClick={() => handleStackButtonClick("bailey")}
             className="text-2xl text-sky-500 bg-sky-500/25 hover:bg-sky-200/25 rounded-lg"
-          >-</button>
-          <button
-            key="times-button"
-            onClick={() => handleOperationButtonClick("x")}
-            className="text-xl text-sky-500 bg-sky-500/25 hover:bg-sky-200/25 rounded-lg"
-          >x</button>
+          >Bailey</button>
           <button
             key="refresh-button"
             onClick={() => handleButtonClick(REFRESH_SYMBOL)}
@@ -213,19 +196,19 @@ export default function Home() {
               key={index}
               onClick={() => handleCardButtonClick(index)}
               className={c.className()}
-            >{ statusIcon(c.status) }</button>
+            >{statusIcon(c.status)}</button>
           ))}
         </div>
         <div className="grid grid-cols-3 gap-2 my-2">
           <input
             type="text"
-            className={`${operations[operationName].textColor} text-4xl text-center col-span-2 rounded-lg focus:outline-none`}
-            value={ card.expression() }
+            className={`${stacks[stackName].textColor} text-4xl text-center col-span-2 rounded-lg focus:outline-none`}
+            value={card.expression()}
             readOnly
           />
           <input
             type="text"
-            className={`${operations[operationName].textColor} text-4xl text-center rounded-lg focus:outline-none`}
+            className={`${stacks[stackName].textColor} text-4xl text-center rounded-lg focus:outline-none`}
             value={userInput}
             readOnly
           />
@@ -245,12 +228,9 @@ export default function Home() {
 }
 
 // Useful for debugging 
-{/* <div>
-  <ul>
-    {flashcards.map((c, index) => (
-      <li
-        key={"item-" + index}
-      >{`${c.expression()} ${c.status}`}</li>
-    ))}
-  </ul>
-</div> */}
+
+      {/* <div>
+        <pre>
+          {JSON.stringify(flashcards, null, 2)}
+        </pre>
+      </div> */}
