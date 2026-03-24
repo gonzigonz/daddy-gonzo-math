@@ -1,5 +1,5 @@
 'use client'
-import { useState } from "react"
+import { useState, useRef } from "react"
 import { ICard } from "./flash_cards/card"
 import { baileysCards } from "./flash_cards/bailey";
 import { indianasCards } from "./flash_cards/indiana";
@@ -49,103 +49,175 @@ const stacks: { [key: string]: IFlashcardStack } = {
 
 stacks["indy"].flashcards[0].status = "pending";
 
-let count = 1;
-let totalTime = 0;
-let elapsedTime: number;
-let startTime = new Date().getTime();
-
-
 export default function Home() {
   const [score, setScore] = useState(0);
   const [avgTime, setAvgTime] = useState(0);
   const [stackName, setStackName] = useState('indy');
   const [userInput, setUserInput] = useState('');
-  const [index, setIndex] = useState(0)
-  const [flashcards, setFlashCards] = useState(stacks['indy'].flashcards)
+  const [index, setIndex] = useState(0);
+  const [flashcards, setFlashCards] = useState(stacks['indy'].flashcards);
   const [card, setCard] = useState(stacks['indy'].flashcards[0]);
+  const [sessionStarted, setSessionStarted] = useState(false);
+  const [sessionFinished, setSessionFinished] = useState(false);
+
+  const startTime = useRef<number>(0);
+  const totalTime = useRef<number>(0);
+  const count = useRef<number>(0);
+
+  const resetSessionState = () => {
+    setScore(0);
+    setAvgTime(0);
+    setUserInput('');
+    count.current = 0;
+    totalTime.current = 0;
+    startTime.current = 0;
+    setSessionStarted(false);
+    setSessionFinished(false);
+  };
+
+  const isSessionComplete = (cards: ICard[]) => cards.every(c => c.status === 'pass' || c.status === 'fail');
+
+  const startSession = () => {
+    resetSessionState();
+
+    for (const c of flashcards) {
+      c.clearStatus();
+    }
+    flashcards[index].status = "pending";
+    setFlashCards([...flashcards]);
+    setCard(flashcards[index]);
+
+    setSessionStarted(true);
+    setSessionFinished(false);
+    startTime.current = Date.now();
+    count.current = 0;
+    totalTime.current = 0;
+    setScore(0);
+    setAvgTime(0);
+    setUserInput('');
+  };
 
   const handleButtonClick = async (value: string) => {
     if (value === REFRESH_SYMBOL) {
-      setScore(0);
-      setAvgTime(0);
-      setUserInput("");
-      await new Promise(f => setTimeout(f, 300));
+      resetSessionState();
 
-      for (var c of flashcards) {
+      for (const c of flashcards) {
         c.clearStatus();
       }
       flashcards[0].status = "pending";
-      setUserInput('');
+      setFlashCards([...flashcards]);
       setIndex(0);
       setCard(flashcards[0]);
-
-      startTime = new Date().getTime();
-      count++;
-    } else if (value == DEL_SYMBOL) {
-      setUserInput((prevInput) => prevInput.slice(0, -1));
-    } else {
-      if (userInput === TICK_MARK || userInput === CROSS_MARK) {
-        return;
-      }
-
-      const userAnswer = userInput + value;
-      setUserInput(userAnswer);
-
-      let answer = card.answer()
-      if (userAnswer.length === answer.length) {
-        await new Promise(f => setTimeout(f, 300));
-        elapsedTime = new Date().getTime() - startTime - 300;
-        try {
-          if (userAnswer === answer) {
-            card.status = "pass";
-            setUserInput(TICK_MARK);
-            setScore(score + 1);
-            totalTime = totalTime + elapsedTime;
-            setAvgTime(Math.round(totalTime / count))
-          } else {
-            card.status = "fail";
-            setUserInput(CROSS_MARK);
-            setScore(score - 1);
-          }
-          await new Promise(f => setTimeout(f, 300));
-
-          setUserInput('');
-          let nextIndex = index === flashcards.length - 1 ? 0 : index + 1;
-          if (!flashcards[nextIndex].status) {
-            flashcards[nextIndex].status = "pending";
-          }
-          setIndex(nextIndex)
-          setCard(flashcards[nextIndex]);
-        } catch (error) {
-          setUserInput("Error");
-        } finally {
-          startTime = new Date().getTime();
-          count++;
-        }
-      }
+      return;
     }
-  }
+
+    if (!sessionStarted || sessionFinished) {
+      return;
+    }
+
+    if (value === DEL_SYMBOL) {
+      setUserInput((prevInput) => prevInput.slice(0, -1));
+      return;
+    }
+
+    if (userInput === TICK_MARK || userInput === CROSS_MARK) {
+      return;
+    }
+
+    const userAnswer = userInput + value;
+    setUserInput(userAnswer);
+
+    const answer = card.answer();
+    if (userAnswer.length !== answer.length) {
+      return;
+    }
+
+    await new Promise(f => setTimeout(f, 300));
+
+    const elapsedTime = Date.now() - startTime.current - 300;
+
+    if (userAnswer === answer) {
+      card.status = "pass";
+      setUserInput(TICK_MARK);
+      setScore((prev) => prev + 1);
+      totalTime.current += elapsedTime;
+      count.current += 1;
+      setAvgTime(Math.round(totalTime.current / count.current));
+    } else {
+      card.status = "fail";
+      setUserInput(CROSS_MARK);
+      setScore((prev) => prev - 1);
+      count.current += 1;
+    }
+
+    await new Promise(f => setTimeout(f, 300));
+
+    if (isSessionComplete(flashcards)) {
+      setSessionStarted(false);
+      setSessionFinished(true);
+      setUserInput('');
+      return;
+    }
+
+    let nextIndex = index === flashcards.length - 1 ? 0 : index + 1;
+    while (flashcards[nextIndex].status && nextIndex !== index) {
+      nextIndex = nextIndex === flashcards.length - 1 ? 0 : nextIndex + 1;
+    }
+
+    if (!flashcards[nextIndex].status) {
+      flashcards[nextIndex].status = "pending";
+    }
+
+    setFlashCards([...flashcards]);
+    setIndex(nextIndex);
+    setCard(flashcards[nextIndex]);
+    setUserInput('');
+    startTime.current = Date.now();
+  };
 
   const handleStackButtonClick = (name: string) => {
-    card.status = "";
-    stacks[name].flashcards[index].status = "pending";
+    resetSessionState();
+
+    for (const c of stacks[name].flashcards) {
+      c.clearStatus();
+    }
+    stacks[name].flashcards[0].status = "pending";
+
     setStackName(name);
     setUserInput('');
     setFlashCards(stacks[name].flashcards);
-    setCard(stacks[name].flashcards[index]);
-    startTime = new Date().getTime();
-  }
+    setIndex(0);
+    setCard(stacks[name].flashcards[0]);
+  };
 
   const handleCardButtonClick = (cardIndex: number) => {
+    if (!sessionStarted) {
+      for (const c of flashcards) {
+        c.clearStatus();
+      }
+      flashcards[cardIndex].status = "pending";
+      setFlashCards([...flashcards]);
+      setIndex(cardIndex);
+      setCard(flashcards[cardIndex]);
+      setUserInput('');
+      return;
+    }
+
+    if (sessionFinished) {
+      return;
+    }
+
     if (card.status === "pending") {
       card.status = "";
     }
+
     flashcards[cardIndex].status = "pending";
+    setFlashCards([...flashcards]);
     setUserInput('');
     setIndex(cardIndex);
     setCard(flashcards[cardIndex]);
-    startTime = new Date().getTime();
-  }
+    startTime.current = Date.now();
+  };
 
   const buttons = [
     '7', '8', '9',
@@ -213,15 +285,39 @@ export default function Home() {
             readOnly
           />
         </div>
-        <div className="grid grid-cols-3 gap-2">
-          {buttons.map((btn) => (
+
+        {!sessionStarted && !sessionFinished && (
+          <div className="flex justify-center mt-4">
             <button
-              key={btn}
-              onClick={() => handleButtonClick(btn)}
-              className="text-4xl text-sky-600 bg-sky-200 hover:bg-sky-300 rounded-lg"
-            >{btn}</button>
-          ))}
-        </div>
+              onClick={startSession}
+              className="px-8 py-6 text-5xl font-bold text-white bg-emerald-500 hover:bg-emerald-600 rounded-xl"
+            >START</button>
+          </div>
+        )}
+
+        {sessionFinished && (
+          <div className="p-4 mt-4 bg-sky-100 rounded-lg text-center">
+            <h2 className="text-3xl font-bold text-sky-700">Session Complete!</h2>
+            <p className="text-xl mt-2">Final score: {score}</p>
+            <p className="text-xl mt-1">Avg time: {Math.round(avgTime / 100) / 10}s</p>
+            <button
+              onClick={startSession}
+              className="mt-4 px-6 py-3 text-2xl text-white bg-blue-500 hover:bg-blue-600 rounded-lg"
+            >Restart</button>
+          </div>
+        )}
+
+        {sessionStarted && !sessionFinished && (
+          <div className="grid grid-cols-3 gap-2">
+            {buttons.map((btn) => (
+              <button
+                key={btn}
+                onClick={() => handleButtonClick(btn)}
+                className="text-4xl text-sky-600 bg-sky-200 hover:bg-sky-300 rounded-lg"
+              >{btn}</button>
+            ))}
+          </div>
+        )}
       </div>
     </main>
   );
