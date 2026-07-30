@@ -112,6 +112,13 @@ const restoreFlashcards = (savedCards: PersistedSessionState["flashcards"]): ICa
   return cards;
 };
 
+const cloneFlashcards = (cards: ICard[]): ICard[] => cards.map((card) => {
+  const source = card as MultiplicationCard;
+  const cloned = new MultiplicationCard(source.term1, source.term2);
+  cloned.status = source.status;
+  return cloned;
+});
+
 export default function Home() {
   const initialSavedSettings = loadSavedSettings();
   const initialSavedSession = loadPersistedSession();
@@ -243,15 +250,6 @@ export default function Home() {
     setStackName(name);
   };
 
-  const resetSettingsForCurrentStack = () => {
-    const defaults = getDefaultSettings(stackName);
-    setStackSettings((prev) => ({
-      ...prev,
-      [stackName]: defaults,
-    }));
-    applyDeck(stackName, defaults);
-  };
-
   const startSession = () => {
     resetSessionState();
 
@@ -309,16 +307,17 @@ export default function Home() {
     await new Promise((f) => setTimeout(f, 300));
 
     const elapsedTime = Date.now() - startTime.current - 300;
+    const updatedFlashcards = cloneFlashcards(flashcards);
 
     if (userAnswer === answer) {
-      card.status = "pass";
+      updatedFlashcards[index].status = "pass";
       setUserInput(TICK_MARK);
       setScore((prev) => prev + 1);
       totalTime.current += elapsedTime;
       count.current += 1;
       setAvgTime(Math.round(totalTime.current / count.current));
     } else {
-      card.status = "fail";
+      updatedFlashcards[index].status = "fail";
       setUserInput(CROSS_MARK);
       setScore((prev) => prev - 1);
       count.current += 1;
@@ -326,25 +325,25 @@ export default function Home() {
 
     await new Promise((f) => setTimeout(f, 300));
 
-    if (isSessionComplete(flashcards)) {
+    if (isSessionComplete(updatedFlashcards)) {
       setSessionStarted(false);
       setSessionFinished(true);
       setUserInput("");
       return;
     }
 
-    let nextIndex = index === flashcards.length - 1 ? 0 : index + 1;
-    while (flashcards[nextIndex].status && nextIndex !== index) {
-      nextIndex = nextIndex === flashcards.length - 1 ? 0 : nextIndex + 1;
+    let nextIndex = index === updatedFlashcards.length - 1 ? 0 : index + 1;
+    while (updatedFlashcards[nextIndex].status && nextIndex !== index) {
+      nextIndex = nextIndex === updatedFlashcards.length - 1 ? 0 : nextIndex + 1;
     }
 
-    if (!flashcards[nextIndex].status) {
-      flashcards[nextIndex].status = "pending";
+    if (!updatedFlashcards[nextIndex].status) {
+      updatedFlashcards[nextIndex].status = "pending";
     }
 
-    setFlashCards([...flashcards]);
+    setFlashCards(updatedFlashcards);
     setIndex(nextIndex);
-    setCard(flashcards[nextIndex]);
+    setCard(updatedFlashcards[nextIndex]);
     setUserInput("");
     startTime.current = Date.now();
   };
@@ -394,14 +393,14 @@ export default function Home() {
   };
 
   const handleCardButtonClick = (cardIndex: number) => {
+    const updatedFlashcards = cloneFlashcards(flashcards);
+
     if (!sessionStarted) {
-      for (const c of flashcards) {
-        c.clearStatus();
-      }
-      flashcards[cardIndex].status = "pending";
-      setFlashCards([...flashcards]);
+      updatedFlashcards.forEach((c) => c.clearStatus());
+      updatedFlashcards[cardIndex].status = "pending";
+      setFlashCards(updatedFlashcards);
       setIndex(cardIndex);
-      setCard(flashcards[cardIndex]);
+      setCard(updatedFlashcards[cardIndex]);
       setUserInput("");
       return;
     }
@@ -411,14 +410,17 @@ export default function Home() {
     }
 
     if (card.status === "pending") {
-      card.status = "";
+      const pendingCard = updatedFlashcards.find((c) => c.status === "pending");
+      if (pendingCard) {
+        pendingCard.clearStatus();
+      }
     }
 
-    flashcards[cardIndex].status = "pending";
-    setFlashCards([...flashcards]);
+    updatedFlashcards[cardIndex].status = "pending";
+    setFlashCards(updatedFlashcards);
     setUserInput("");
     setIndex(cardIndex);
-    setCard(flashcards[cardIndex]);
+    setCard(updatedFlashcards[cardIndex]);
     startTime.current = Date.now();
   };
 
@@ -441,6 +443,7 @@ export default function Home() {
   };
 
   const activeSettings = stackSettings[stackName] ?? getDefaultSettings(stackName);
+  const averageSeconds = Math.round(avgTime / 100) / 10;
 
   return (
     <main className="flex min-h-screen flex-col items-center py-4 px-4 sm:p-6 md:py-10 md:px-8">
@@ -448,7 +451,7 @@ export default function Home() {
       <div id="app" className="p-6 sm:p-12 md:px-24 lg:px-36 mx-2 sm:mx-20 md:mx-24 lg:mx-30 shadow-lg">
         <div className="grid grid-cols-2 gap-2">
           <p className="text-center text-white bg-pink-400">Score: {score}</p>
-          <p className="text-center text-white bg-pink-600">Avg Time: {avgTime / 1000}s</p>
+          <p className="text-center text-white bg-pink-600">Avg Time: {averageSeconds}s</p>
         </div>
         <div className="grid col-start-2 grid-cols-3 gap-2 my-2">
           <button
