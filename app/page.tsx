@@ -49,7 +49,7 @@ const getDefaultSettings = (stackName: string): SessionSettings => ({
   order: "random",
 });
 
-const buildFlashcards = (settings: SessionSettings): ICard[] => {
+const buildFlashcards = (settings: SessionSettings, shuffle = true): ICard[] => {
   const cards: ICard[] = [];
 
   settings.selectedFactors.forEach((factor) => {
@@ -58,7 +58,7 @@ const buildFlashcards = (settings: SessionSettings): ICard[] => {
     }
   });
 
-  if (settings.order === "random") {
+  if (shuffle && settings.order === "random") {
     for (let index = cards.length - 1; index > 0; index -= 1) {
       const j = Math.floor(Math.random() * (index + 1));
       [cards[index], cards[j]] = [cards[j], cards[index]];
@@ -120,32 +120,24 @@ const cloneFlashcards = (cards: ICard[]): ICard[] => cards.map((card) => {
 });
 
 export default function Home() {
-  const initialSavedSettings = loadSavedSettings();
-  const initialSavedSession = loadPersistedSession();
-  const initialStackName = initialSavedSession?.stackName ?? "indy";
+  const defaultStackName = "indy";
+  const initialDeck = buildFlashcards(getDefaultSettings(defaultStackName), false);
+  initialDeck[0].status = "pending";
 
-  const [score, setScore] = useState(initialSavedSession?.score ?? 0);
-  const [avgTime, setAvgTime] = useState(initialSavedSession?.avgTime ?? 0);
-  const [stackName, setStackName] = useState(initialStackName);
-  const [userInput, setUserInput] = useState(initialSavedSession?.userInput ?? "");
-  const [index, setIndex] = useState(initialSavedSession?.index ?? 0);
-  const [flashcards, setFlashCards] = useState<ICard[]>(() => {
-    if (initialSavedSession && initialSavedSession.stackName === initialStackName) {
-      return restoreFlashcards(initialSavedSession.flashcards);
-    }
-
-    return buildFlashcards(getDefaultSettings(initialStackName));
-  });
-  const [card, setCard] = useState<ICard>(() => {
-    const restoredCards = flashcards;
-    return restoredCards[initialSavedSession?.index ?? 0] ?? restoredCards[0];
-  });
-  const [sessionStarted, setSessionStarted] = useState(initialSavedSession?.sessionStarted ?? false);
-  const [sessionFinished, setSessionFinished] = useState(initialSavedSession?.sessionFinished ?? false);
+  const [score, setScore] = useState(0);
+  const [avgTime, setAvgTime] = useState(0);
+  const [stackName, setStackName] = useState(defaultStackName);
+  const [userInput, setUserInput] = useState("");
+  const [index, setIndex] = useState(0);
+  const [flashcards, setFlashCards] = useState<ICard[]>(initialDeck);
+  const [card, setCard] = useState<ICard>(initialDeck[0]);
+  const [sessionStarted, setSessionStarted] = useState(false);
+  const [sessionFinished, setSessionFinished] = useState(false);
   const [stackSettings, setStackSettings] = useState<SavedSettings>(() => ({
-    indy: initialSavedSettings.indy ?? getDefaultSettings("indy"),
-    bailey: initialSavedSettings.bailey ?? getDefaultSettings("bailey"),
+    indy: getDefaultSettings("indy"),
+    bailey: getDefaultSettings("bailey"),
   }));
+  const [hasHydrated, setHasHydrated] = useState(false);
 
   const startTime = useRef<number>(0);
   const totalTime = useRef<number>(0);
@@ -173,7 +165,7 @@ export default function Home() {
     setStackSettings(nextSettings);
 
     const savedSession = loadPersistedSession();
-    if (savedSession && savedSession.stackName === stackName) {
+    if (savedSession) {
       const restoredCards = restoreFlashcards(savedSession.flashcards);
       const restoredCard = restoredCards[savedSession.index] ?? restoredCards[0];
       setFlashCards(restoredCards);
@@ -184,21 +176,13 @@ export default function Home() {
       setUserInput(savedSession.userInput);
       setSessionStarted(savedSession.sessionStarted);
       setSessionFinished(savedSession.sessionFinished);
+      setStackName(savedSession.stackName);
+      setHasHydrated(true);
       return;
     }
 
-    const activeSettings = nextSettings[stackName] ?? getDefaultSettings(stackName);
-    const initialDeck = buildFlashcards(activeSettings);
-    initialDeck[0].status = "pending";
-    setFlashCards(initialDeck);
-    setCard(initialDeck[0]);
-    setIndex(0);
-    setScore(0);
-    setAvgTime(0);
-    setUserInput("");
-    setSessionStarted(false);
-    setSessionFinished(false);
-  }, [stackName]);
+    setHasHydrated(true);
+  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -227,6 +211,21 @@ export default function Home() {
 
     window.localStorage.removeItem(SESSION_STORAGE_KEY);
   }, [avgTime, flashcards, index, score, sessionFinished, sessionStarted, stackName, userInput]);
+
+  useEffect(() => {
+    if (!hasHydrated) {
+      return;
+    }
+
+    if (!sessionStarted && !sessionFinished && flashcards.every((card) => card.status === "")) {
+      const activeSettings = stackSettings[stackName] ?? getDefaultSettings(stackName);
+      const initialDeck = buildFlashcards(activeSettings, true);
+      initialDeck[0].status = "pending";
+      setFlashCards(initialDeck);
+      setCard(initialDeck[0]);
+      setIndex(0);
+    }
+  }, [hasHydrated, sessionStarted, sessionFinished, stackName, stackSettings, flashcards]);
 
   const resetSessionState = () => {
     setScore(0);
