@@ -1,73 +1,230 @@
 'use client'
-import { useState, useRef } from "react"
-import { ICard } from "./flash_cards/card"
-import { baileysCards } from "./flash_cards/bailey";
-import { indianasCards } from "./flash_cards/indiana";
+import { useEffect, useRef, useState } from "react"
+import { ICard, MultiplicationCard } from "./flash_cards/card"
 
-// import Image from "next/image";
-// const config = require('../next.config')
-// const vercel_svg_path = `${config.basePath}/vercel.svg`
-// const next_svg_path = `${config.basePath}/next.svg`
-
-const TICK_MARK = "\u2713";
-const CROSS_MARK = "\u2717";
-const DEL_SYMBOL = "\u232b";
-const REFRESH_SYMBOL = "\u21bb";
+const TICK_MARK = "✓";
+const CROSS_MARK = "✗";
+const DEL_SYMBOL = "⌫";
+const REFRESH_SYMBOL = "↻";
+const SETTINGS_STORAGE_KEY = "daddy-gonzo-math-settings";
+const SESSION_STORAGE_KEY = "daddy-gonzo-math-session";
+const FACTOR_OPTIONS = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
 
 interface IFlashcardStack {
   name: string;
   textColor: string;
-  flashcards: ICard[];
 }
 
-class IndianasFlashcards implements IFlashcardStack {
-  readonly name: string;
-  readonly textColor: string;
-  readonly flashcards: ICard[];
-  constructor() {
-    this.name = "indy";
-    this.textColor = "text-yellow-500";
-    this.flashcards = indianasCards;
-  }
+interface SessionSettings {
+  selectedFactors: number[];
+  order: "in-order" | "random";
 }
 
-class BaileysFlashcards implements IFlashcardStack {
-  readonly name: string;
-  readonly textColor: string;
-  readonly flashcards: ICard[];
-  constructor() {
-    this.name = "bailey";
-    this.textColor = "text-indigo-500";
-    this.flashcards = baileysCards;
-  }
+type SavedSettings = Record<string, SessionSettings>;
+
+interface PersistedSessionState {
+  stackName: string;
+  score: number;
+  avgTime: number;
+  index: number;
+  userInput: string;
+  sessionStarted: boolean;
+  sessionFinished: boolean;
+  flashcards: Array<{ term1: number; term2: number; status: string }>;
 }
 
 const stacks: { [key: string]: IFlashcardStack } = {
-  'indy': new IndianasFlashcards(),
-  'bailey': new BaileysFlashcards(),
-}
+  indy: {
+    name: "indy",
+    textColor: "text-yellow-500",
+  },
+  bailey: {
+    name: "bailey",
+    textColor: "text-indigo-500",
+  },
+};
 
-stacks["indy"].flashcards[0].status = "pending";
+const getDefaultSettings = (stackName: string): SessionSettings => ({
+  selectedFactors: stackName === "indy" ? [2, 3, 4] : [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+  order: "random",
+});
+
+const buildFlashcards = (settings: SessionSettings): ICard[] => {
+  const cards: ICard[] = [];
+
+  settings.selectedFactors.forEach((factor) => {
+    for (let secondTerm = 2; secondTerm <= 12; secondTerm += 1) {
+      cards.push(new MultiplicationCard(factor, secondTerm));
+    }
+  });
+
+  if (settings.order === "random") {
+    for (let index = cards.length - 1; index > 0; index -= 1) {
+      const j = Math.floor(Math.random() * (index + 1));
+      [cards[index], cards[j]] = [cards[j], cards[index]];
+    }
+  }
+
+  return cards;
+};
+
+const loadSavedSettings = (): SavedSettings => {
+  if (typeof window === "undefined") {
+    return {};
+  }
+
+  try {
+    const saved = window.localStorage.getItem(SETTINGS_STORAGE_KEY);
+    if (!saved) {
+      return {};
+    }
+
+    return JSON.parse(saved) as SavedSettings;
+  } catch {
+    return {};
+  }
+};
+
+const loadPersistedSession = (): PersistedSessionState | null => {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  try {
+    const saved = window.localStorage.getItem(SESSION_STORAGE_KEY);
+    if (!saved) {
+      return null;
+    }
+
+    return JSON.parse(saved) as PersistedSessionState;
+  } catch {
+    return null;
+  }
+};
+
+const restoreFlashcards = (savedCards: PersistedSessionState["flashcards"]): ICard[] => {
+  const cards = savedCards.map((card) => {
+    const restoredCard = new MultiplicationCard(card.term1, card.term2);
+    restoredCard.status = card.status;
+    return restoredCard;
+  });
+
+  return cards;
+};
 
 export default function Home() {
-  const [score, setScore] = useState(0);
-  const [avgTime, setAvgTime] = useState(0);
-  const [stackName, setStackName] = useState('indy');
-  const [userInput, setUserInput] = useState('');
-  const [index, setIndex] = useState(0);
-  const [flashcards, setFlashCards] = useState(stacks['indy'].flashcards);
-  const [card, setCard] = useState(stacks['indy'].flashcards[0]);
-  const [sessionStarted, setSessionStarted] = useState(false);
-  const [sessionFinished, setSessionFinished] = useState(false);
+  const initialSavedSettings = loadSavedSettings();
+  const initialSavedSession = loadPersistedSession();
+  const initialStackName = initialSavedSession?.stackName ?? "indy";
+
+  const [score, setScore] = useState(initialSavedSession?.score ?? 0);
+  const [avgTime, setAvgTime] = useState(initialSavedSession?.avgTime ?? 0);
+  const [stackName, setStackName] = useState(initialStackName);
+  const [userInput, setUserInput] = useState(initialSavedSession?.userInput ?? "");
+  const [index, setIndex] = useState(initialSavedSession?.index ?? 0);
+  const [flashcards, setFlashCards] = useState<ICard[]>(() => {
+    if (initialSavedSession && initialSavedSession.stackName === initialStackName) {
+      return restoreFlashcards(initialSavedSession.flashcards);
+    }
+
+    return buildFlashcards(getDefaultSettings(initialStackName));
+  });
+  const [card, setCard] = useState<ICard>(() => {
+    const restoredCards = flashcards;
+    return restoredCards[initialSavedSession?.index ?? 0] ?? restoredCards[0];
+  });
+  const [sessionStarted, setSessionStarted] = useState(initialSavedSession?.sessionStarted ?? false);
+  const [sessionFinished, setSessionFinished] = useState(initialSavedSession?.sessionFinished ?? false);
+  const [stackSettings, setStackSettings] = useState<SavedSettings>(() => ({
+    indy: initialSavedSettings.indy ?? getDefaultSettings("indy"),
+    bailey: initialSavedSettings.bailey ?? getDefaultSettings("bailey"),
+  }));
 
   const startTime = useRef<number>(0);
   const totalTime = useRef<number>(0);
   const count = useRef<number>(0);
 
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    window.localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(stackSettings));
+  }, [stackSettings]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const saved = loadSavedSettings();
+    const nextSettings: SavedSettings = {
+      indy: saved.indy ?? getDefaultSettings("indy"),
+      bailey: saved.bailey ?? getDefaultSettings("bailey"),
+    };
+
+    setStackSettings(nextSettings);
+
+    const savedSession = loadPersistedSession();
+    if (savedSession && savedSession.stackName === stackName) {
+      const restoredCards = restoreFlashcards(savedSession.flashcards);
+      const restoredCard = restoredCards[savedSession.index] ?? restoredCards[0];
+      setFlashCards(restoredCards);
+      setCard(restoredCard);
+      setIndex(savedSession.index);
+      setScore(savedSession.score);
+      setAvgTime(savedSession.avgTime);
+      setUserInput(savedSession.userInput);
+      setSessionStarted(savedSession.sessionStarted);
+      setSessionFinished(savedSession.sessionFinished);
+      return;
+    }
+
+    const activeSettings = nextSettings[stackName] ?? getDefaultSettings(stackName);
+    const initialDeck = buildFlashcards(activeSettings);
+    initialDeck[0].status = "pending";
+    setFlashCards(initialDeck);
+    setCard(initialDeck[0]);
+    setIndex(0);
+    setScore(0);
+    setAvgTime(0);
+    setUserInput("");
+    setSessionStarted(false);
+    setSessionFinished(false);
+  }, [stackName]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    if (sessionStarted || sessionFinished || flashcards.some((card) => card.status !== "")) {
+      const persistedSession: PersistedSessionState = {
+        stackName,
+        score,
+        avgTime,
+        index,
+        userInput,
+        sessionStarted,
+        sessionFinished,
+        flashcards: flashcards.map((card) => ({
+          term1: (card as MultiplicationCard).term1 ?? 0,
+          term2: (card as MultiplicationCard).term2 ?? 0,
+          status: card.status,
+        })),
+      };
+
+      window.localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(persistedSession));
+      return;
+    }
+
+    window.localStorage.removeItem(SESSION_STORAGE_KEY);
+  }, [avgTime, flashcards, index, score, sessionFinished, sessionStarted, stackName, userInput]);
+
   const resetSessionState = () => {
     setScore(0);
     setAvgTime(0);
-    setUserInput('');
+    setUserInput("");
     count.current = 0;
     totalTime.current = 0;
     startTime.current = 0;
@@ -75,17 +232,35 @@ export default function Home() {
     setSessionFinished(false);
   };
 
-  const isSessionComplete = (cards: ICard[]) => cards.every(c => c.status === 'pass' || c.status === 'fail');
+  const isSessionComplete = (cards: ICard[]) => cards.every((c) => c.status === "pass" || c.status === "fail");
+
+  const applyDeck = (name: string, settings: SessionSettings) => {
+    const nextCards = buildFlashcards(settings);
+    nextCards[0].status = "pending";
+    setFlashCards(nextCards);
+    setIndex(0);
+    setCard(nextCards[0]);
+    setStackName(name);
+  };
+
+  const resetSettingsForCurrentStack = () => {
+    const defaults = getDefaultSettings(stackName);
+    setStackSettings((prev) => ({
+      ...prev,
+      [stackName]: defaults,
+    }));
+    applyDeck(stackName, defaults);
+  };
 
   const startSession = () => {
     resetSessionState();
 
-    for (const c of flashcards) {
-      c.clearStatus();
-    }
-    flashcards[index].status = "pending";
-    setFlashCards([...flashcards]);
-    setCard(flashcards[index]);
+    const activeSettings = stackSettings[stackName] ?? getDefaultSettings(stackName);
+    const nextCards = buildFlashcards(activeSettings);
+    nextCards[0].status = "pending";
+    setFlashCards(nextCards);
+    setCard(nextCards[0]);
+    setIndex(0);
 
     setSessionStarted(true);
     setSessionFinished(false);
@@ -94,20 +269,19 @@ export default function Home() {
     totalTime.current = 0;
     setScore(0);
     setAvgTime(0);
-    setUserInput('');
+    setUserInput("");
   };
 
   const handleButtonClick = async (value: string) => {
     if (value === REFRESH_SYMBOL) {
       resetSessionState();
 
-      for (const c of flashcards) {
-        c.clearStatus();
-      }
-      flashcards[0].status = "pending";
-      setFlashCards([...flashcards]);
+      const activeSettings = stackSettings[stackName] ?? getDefaultSettings(stackName);
+      const nextCards = buildFlashcards(activeSettings);
+      nextCards[0].status = "pending";
+      setFlashCards(nextCards);
       setIndex(0);
-      setCard(flashcards[0]);
+      setCard(nextCards[0]);
       return;
     }
 
@@ -132,7 +306,7 @@ export default function Home() {
       return;
     }
 
-    await new Promise(f => setTimeout(f, 300));
+    await new Promise((f) => setTimeout(f, 300));
 
     const elapsedTime = Date.now() - startTime.current - 300;
 
@@ -150,12 +324,12 @@ export default function Home() {
       count.current += 1;
     }
 
-    await new Promise(f => setTimeout(f, 300));
+    await new Promise((f) => setTimeout(f, 300));
 
     if (isSessionComplete(flashcards)) {
       setSessionStarted(false);
       setSessionFinished(true);
-      setUserInput('');
+      setUserInput("");
       return;
     }
 
@@ -171,23 +345,52 @@ export default function Home() {
     setFlashCards([...flashcards]);
     setIndex(nextIndex);
     setCard(flashcards[nextIndex]);
-    setUserInput('');
+    setUserInput("");
     startTime.current = Date.now();
   };
 
   const handleStackButtonClick = (name: string) => {
     resetSessionState();
+    const defaultSettings = stackSettings[name] ?? getDefaultSettings(name);
+    applyDeck(name, defaultSettings);
+  };
 
-    for (const c of stacks[name].flashcards) {
-      c.clearStatus();
+  const toggleFactor = (factor: number) => {
+    const currentSettings = stackSettings[stackName] ?? getDefaultSettings(stackName);
+    const currentFactors = currentSettings.selectedFactors;
+
+    if (currentFactors.includes(factor)) {
+      if (currentFactors.length === 1) {
+        return;
+      }
+
+      setStackSettings((prev) => ({
+        ...prev,
+        [stackName]: {
+          ...currentSettings,
+          selectedFactors: currentFactors.filter((item) => item !== factor),
+        },
+      }));
+    } else {
+      setStackSettings((prev) => ({
+        ...prev,
+        [stackName]: {
+          ...currentSettings,
+          selectedFactors: [...currentFactors, factor].sort((a, b) => a - b),
+        },
+      }));
     }
-    stacks[name].flashcards[0].status = "pending";
+  };
 
-    setStackName(name);
-    setUserInput('');
-    setFlashCards(stacks[name].flashcards);
-    setIndex(0);
-    setCard(stacks[name].flashcards[0]);
+  const handleOrderChange = (order: SessionSettings["order"]) => {
+    const currentSettings = stackSettings[stackName] ?? getDefaultSettings(stackName);
+    setStackSettings((prev) => ({
+      ...prev,
+      [stackName]: {
+        ...currentSettings,
+        order,
+      },
+    }));
   };
 
   const handleCardButtonClick = (cardIndex: number) => {
@@ -199,7 +402,7 @@ export default function Home() {
       setFlashCards([...flashcards]);
       setIndex(cardIndex);
       setCard(flashcards[cardIndex]);
-      setUserInput('');
+      setUserInput("");
       return;
     }
 
@@ -213,18 +416,18 @@ export default function Home() {
 
     flashcards[cardIndex].status = "pending";
     setFlashCards([...flashcards]);
-    setUserInput('');
+    setUserInput("");
     setIndex(cardIndex);
     setCard(flashcards[cardIndex]);
     startTime.current = Date.now();
   };
 
   const buttons = [
-    '7', '8', '9',
-    '4', '5', '6',
-    '1', '2', '3',
-    '-', '0', DEL_SYMBOL
-  ]
+    "7", "8", "9",
+    "4", "5", "6",
+    "1", "2", "3",
+    "-", "0", DEL_SYMBOL,
+  ];
 
   const statusIcon = (status: string): string => {
     switch (status) {
@@ -235,7 +438,9 @@ export default function Home() {
       default:
         return "-";
     }
-  }
+  };
+
+  const activeSettings = stackSettings[stackName] ?? getDefaultSettings(stackName);
 
   return (
     <main className="flex min-h-screen flex-col items-center py-4 px-4 sm:p-6 md:py-10 md:px-8">
@@ -287,11 +492,65 @@ export default function Home() {
         </div>
 
         {!sessionStarted && !sessionFinished && (
-          <div className="flex justify-center mt-4">
-            <button
-              onClick={startSession}
-              className="px-8 py-6 text-5xl font-bold text-white bg-emerald-500 hover:bg-emerald-600 rounded-xl"
-            >START</button>
+          <div className="mt-4 rounded-xl border border-sky-200 bg-sky-50 p-4 text-sky-800">
+            <h2 className="text-xl font-bold">Practice setup</h2>
+            <p className="mt-2 text-sm">Pick the tables to practice and whether they should come in order or shuffled.</p>
+
+            <div className="mt-4">
+              <p className="mb-2 font-semibold">Tables</p>
+              <div className="flex flex-wrap gap-2">
+                {FACTOR_OPTIONS.map((factor) => {
+                  const isSelected = activeSettings.selectedFactors.includes(factor);
+
+                  return (
+                    <button
+                      key={factor}
+                      onClick={() => toggleFactor(factor)}
+                      className={`rounded-full px-3 py-2 text-sm font-semibold ${
+                        isSelected
+                          ? "bg-sky-600 text-white"
+                          : "bg-white text-sky-700 ring-1 ring-sky-300"
+                      }`}
+                    >
+                      {factor}x
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="mt-4">
+              <p className="mb-2 font-semibold">Order</p>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => handleOrderChange("in-order")}
+                  className={`rounded-full px-3 py-2 text-sm font-semibold ${
+                    activeSettings.order === "in-order"
+                      ? "bg-emerald-600 text-white"
+                      : "bg-white text-emerald-700 ring-1 ring-emerald-300"
+                  }`}
+                >
+                  In order
+                </button>
+                <button
+                  onClick={() => handleOrderChange("random")}
+                  className={`rounded-full px-3 py-2 text-sm font-semibold ${
+                    activeSettings.order === "random"
+                      ? "bg-emerald-600 text-white"
+                      : "bg-white text-emerald-700 ring-1 ring-emerald-300"
+                  }`}
+                >
+                  Random
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-4 flex justify-center">
+              <button
+                onClick={startSession}
+                className="px-8 py-6 text-5xl font-bold text-white bg-emerald-500 hover:bg-emerald-600 rounded-xl"
+              >START</button>
+            </div>
           </div>
         )}
 
@@ -322,11 +581,3 @@ export default function Home() {
     </main>
   );
 }
-
-// Useful for debugging 
-
-      {/* <div>
-        <pre>
-          {JSON.stringify(flashcards, null, 2)}
-        </pre>
-      </div> */}
