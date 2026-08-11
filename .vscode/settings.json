@@ -32,6 +32,10 @@
         "/^git switch -c chore/workspace-housekeeping && git add README\\.md package\\.json package-lock\\.json \\.nvmrc \\.github/workflows/quality\\.yml \\.github/skills/workspace-housekeeping/SKILL\\.md && git commit -m \"Add workspace housekeeping workflow\"$/": {
             "approve": true,
             "matchCommandLine": true
+        },
+        "/^git add \\.vscode/settings\\.json && git commit -m \"Resolve settings conflict with main\" && git stash pop$/": {
+            "approve": true,
+            "matchCommandLine": true
         }
     }
 }
