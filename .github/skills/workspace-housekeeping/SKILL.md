@@ -29,7 +29,7 @@ Use this skill for small, repeatable maintenance passes. Keep each pass focused 
    - Install reproducibly with `npm ci`.
    - Check high and critical dependency findings with `npm audit --audit-level=high`.
    - Run the available lint, typecheck, test, and production build commands.
-   - Report lower-severity or unresolved transitive advisories when they do not justify a change in the current pass.
+   - Report lower-severity or unresolved transitive advisories when they do not justify a change in the current pass. If CI treats an audit as non-blocking while a larger migration is deferred, preserve the audit output and state that limitation explicitly.
 5. Review the result:
    - Inspect the final diff and verify that only the requested housekeeping files changed.
    - Re-run focused checks after each substantive repair.
@@ -44,4 +44,4 @@ Use this skill for small, repeatable maintenance passes. Keep each pass focused 
 
 ## Completion Criteria
 
-A housekeeping pass is complete only when the requested checks have been run, the diff is focused, and a pull request has been opened or a concrete external blocker has been reported. Never merge the pull request as part of this skill.
+A housekeeping pass is complete only when the requested checks have been run, the diff is focused, unresolved audit findings are documented, and a pull request has been opened or a concrete external blocker has been reported. Never merge the pull request as part of this skill.

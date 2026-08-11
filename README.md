@@ -18,6 +18,8 @@ npm run build
 npm audit --audit-level=high
 ```
 
+The CI audit step reports high-severity findings without blocking this baseline while the required Next.js major-version migration is planned separately. Linting, typechecking, and production builds remain required checks.
+
 First, run the development server:
 
 ```bash
