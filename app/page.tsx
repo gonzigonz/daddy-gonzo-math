@@ -12,6 +12,7 @@ import {
   Order,
   PreAlgebraSettings,
 } from "./flash_cards/concepts"
+import { SessionMode, getDefaultSessionMode, getHintMessage, isObviousAnswerMistake, shouldAdvanceAfterAnswer } from "./flash_cards/session-flow"
 
 const TICK_MARK = "✓";
 const CROSS_MARK = "✗";
@@ -50,6 +51,7 @@ export default function Home() {
   const [conceptSettings, setConceptSettings] = useState<SettingsByConcept>(initialSettings);
   const [helpMessage, setHelpMessage] = useState<string>("");
   const [sessionSummary, setSessionSummary] = useState<string[]>([]);
+  const [sessionMode, setSessionMode] = useState<SessionMode>(getDefaultSessionMode(defaultConceptId));
 
   const startTime = useRef<number>(0);
   const totalTime = useRef<number>(0);
@@ -111,6 +113,12 @@ export default function Home() {
 
     setHelpMessage("");
 
+    const cardMetadata = flashcards[index] as typeof flashcards[number] & {
+      hint?: string;
+      explanation?: string;
+      skill?: string;
+    };
+
     if (value === "-") {
       if (userInput.includes("-")) {
         return;
@@ -124,13 +132,30 @@ export default function Home() {
       return;
     }
 
-    if (userInput === TICK_MARK || userInput === CROSS_MARK) {
+    if (userInput === TICK_MARK) {
+      return;
+    }
+
+    if (userInput === CROSS_MARK) {
+      setUserInput("");
       return;
     }
 
     const nextInput = userInput + value;
-    setUserInput(nextInput);
     const answer = card.answer();
+
+    if (isObviousAnswerMistake(answer, nextInput)) {
+      setUserInput(nextInput);
+      const cardMetadata = flashcards[index] as typeof flashcards[number] & {
+        hint?: string;
+        explanation?: string;
+        skill?: string;
+      };
+      setHelpMessage(getHintMessage(sessionMode, cardMetadata.skill, cardMetadata.hint, cardMetadata.explanation));
+      return;
+    }
+
+    setUserInput(nextInput);
     if (nextInput.length !== answer.length) {
       return;
     }
@@ -152,12 +177,10 @@ export default function Home() {
       setScore((previousScore) => previousScore - 1);
       count.current += 1;
 
-      const cardMetadata = updatedFlashcards[index] as typeof updatedFlashcards[number] & {
-        hint?: string;
-        explanation?: string;
-        skill?: string;
-      };
-      setHelpMessage(cardMetadata.hint ?? "Try simplifying the expression one step at a time.");
+      setHelpMessage(getHintMessage(sessionMode, cardMetadata.skill, cardMetadata.hint, cardMetadata.explanation));
+      setFlashCards(updatedFlashcards);
+      setCard(updatedFlashcards[index]);
+      return;
     }
 
     await new Promise((resolve) => setTimeout(resolve, 300));
@@ -177,21 +200,31 @@ export default function Home() {
       return;
     }
 
-    let nextIndex = index === updatedFlashcards.length - 1 ? 0 : index + 1;
-    while (updatedFlashcards[nextIndex].status && nextIndex !== index) {
-      nextIndex = nextIndex === updatedFlashcards.length - 1 ? 0 : nextIndex + 1;
+    if (shouldAdvanceAfterAnswer(sessionMode, nextInput === answer)) {
+      let nextIndex = index === updatedFlashcards.length - 1 ? 0 : index + 1;
+      while (updatedFlashcards[nextIndex].status && nextIndex !== index) {
+        nextIndex = nextIndex === updatedFlashcards.length - 1 ? 0 : nextIndex + 1;
+      }
+
+      updatedFlashcards[nextIndex].status = "pending";
+      setFlashCards(updatedFlashcards);
+      setIndex(nextIndex);
+      setCard(updatedFlashcards[nextIndex]);
+      setUserInput("");
+      startTime.current = Date.now();
+      return;
     }
 
-    updatedFlashcards[nextIndex].status = "pending";
+    updatedFlashcards[index].status = "fail";
     setFlashCards(updatedFlashcards);
-    setIndex(nextIndex);
-    setCard(updatedFlashcards[nextIndex]);
     setUserInput("");
+    setCard(updatedFlashcards[index]);
     startTime.current = Date.now();
   };
 
   const handleConceptClick = (nextConceptId: string) => {
     resetSessionState();
+    setSessionMode(getDefaultSessionMode(nextConceptId));
     applyDeck(nextConceptId);
   };
 
@@ -203,6 +236,10 @@ export default function Home() {
 
   const handleLevelChange = (levelSettings: ConceptSettings) => {
     updateSettings(levelSettings);
+  };
+
+  const toggleSessionMode = (nextMode: SessionMode) => {
+    setSessionMode(nextMode);
   };
 
   const handleOrderChange = (order: Order) => {
@@ -348,6 +385,21 @@ export default function Home() {
           <div className="mt-4 rounded-xl border border-sky-200 bg-sky-50 p-4 text-sky-800">
             <h2 className="text-xl font-bold">Practice setup</h2>
             <p className="mt-2 text-sm">Keep it short and repeatable: up to 10 questions per round.</p>
+
+            <div className="mt-4">
+              <p className="mb-2 font-semibold">Mode</p>
+              <div className="flex flex-wrap gap-2">
+                <button onClick={() => toggleSessionMode("practice")} className={`rounded-full px-3 py-2 text-sm font-semibold ${sessionMode === "practice" ? "bg-emerald-600 text-white" : "bg-white text-emerald-700 ring-1 ring-emerald-300"}`}>
+                  Practice
+                </button>
+                <button onClick={() => toggleSessionMode("mastery")} className={`rounded-full px-3 py-2 text-sm font-semibold ${sessionMode === "mastery" ? "bg-violet-600 text-white" : "bg-white text-violet-700 ring-1 ring-violet-300"}`}>
+                  Mastery
+                </button>
+              </div>
+              <p className="mt-2 text-xs text-sky-700">
+                {sessionMode === "practice" ? "Keep moving and revisit missed questions later." : "Stay on the question until it makes sense."}
+              </p>
+            </div>
 
             <div className="mt-4">
               <p className="mb-2 font-semibold">Levels</p>
