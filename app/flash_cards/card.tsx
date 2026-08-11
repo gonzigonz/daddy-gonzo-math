@@ -68,6 +68,25 @@ abstract class ArithmeticCard implements ICard {
     }
 }
 
+export class PreAlgebraCard extends ArithmeticCard {
+    constructor(
+        readonly prompt: string,
+        readonly expectedValue: number,
+    ) {
+        super();
+    }
+
+    answer(): string { return this.expectedValue.toString(); }
+
+    clone(): ICard {
+        const card = new PreAlgebraCard(this.prompt, this.expectedValue);
+        card.status = this.status;
+        return card;
+    }
+
+    expression(): string { return this.prompt; }
+}
+
 export class AdditionCard extends ArithmeticCard {
     constructor(readonly term1: number, readonly term2: number) {
         super();

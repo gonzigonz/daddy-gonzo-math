@@ -4,6 +4,7 @@ import {
     DivisionCard,
     ICard,
     MultiplicationCard,
+    PreAlgebraCard,
     SubtractionCard,
 } from "./card";
 
@@ -32,7 +33,20 @@ export interface DecimalSettings {
     order: "random";
 }
 
-export type ConceptSettings = MultiplicationSettings | IntegerSettings | DecimalSettings;
+export type PreAlgebraLevel =
+    | "signed-number-sense"
+    | "algebra-language"
+    | "arithmetic-relationships"
+    | "equivalent-expressions"
+    | "readiness-mix";
+
+export interface PreAlgebraSettings {
+    kind: "pre-algebra";
+    level: PreAlgebraLevel;
+    order: Order;
+}
+
+export type ConceptSettings = MultiplicationSettings | IntegerSettings | DecimalSettings | PreAlgebraSettings;
 
 export interface PracticeLevel {
     id: string;
@@ -140,6 +154,111 @@ const buildDecimalCards = (settings: DecimalSettings): ICard[] => {
     }
 
     return limitDeck(shuffle(cards, "random"));
+};
+
+const buildPreAlgebraPromptDeck = (
+    prompts: Array<{ prompt: string; answer: number }>,
+    order: Order,
+): ICard[] => {
+    const cards = prompts.map(({ prompt, answer }) => new PreAlgebraCard(prompt, answer));
+    return limitDeck(shuffle(cards, order));
+};
+
+const buildSignedNumberCards = (order: Order): ICard[] => {
+    const prompts = [
+        { prompt: "|-7|", answer: 7 },
+        { prompt: "-4 + 9", answer: 5 },
+        { prompt: "-3 - 8", answer: -11 },
+        { prompt: "5 + (-2)", answer: 3 },
+        { prompt: "-6 + (-4)", answer: -10 },
+        { prompt: "9 - (-2)", answer: 11 },
+        { prompt: "-7 + 4", answer: -3 },
+        { prompt: "|-8| + 2", answer: 10 },
+        { prompt: "-5 + 2", answer: -3 },
+        { prompt: "-9 + 9", answer: 0 },
+        { prompt: "3 + (-8)", answer: -5 },
+        { prompt: "-1 - (-6)", answer: 5 },
+    ];
+
+    return buildPreAlgebraPromptDeck(prompts, order);
+};
+
+const buildAlgebraLanguageCards = (order: Order): ICard[] => {
+    const prompts = [
+        { prompt: "If x = 3, then 2x + 1", answer: 7 },
+        { prompt: "If x = 4, then 5x - 2", answer: 18 },
+        { prompt: "If x = -2, then 3x + 5", answer: -1 },
+        { prompt: "If x = 6, then x / 2 + 4", answer: 7 },
+        { prompt: "If x = 5, then 4x", answer: 20 },
+        { prompt: "If x = -3, then 2x + 9", answer: 3 },
+        { prompt: "If x = 7, then x + 3", answer: 10 },
+        { prompt: "If x = 2, then 6x - 4", answer: 8 },
+        { prompt: "If x = 10, then x / 5", answer: 2 },
+        { prompt: "If x = -4, then x + 11", answer: 7 },
+    ];
+
+    return buildPreAlgebraPromptDeck(prompts, order);
+};
+
+const buildArithmeticRelationshipCards = (order: Order): ICard[] => {
+    const prompts = [
+        { prompt: "? + 7 = 12", answer: 5 },
+        { prompt: "6 × ? = 42", answer: 7 },
+        { prompt: "? ÷ 4 = 5", answer: 20 },
+        { prompt: "18 - ? = 11", answer: 7 },
+        { prompt: "? + 9 = 3", answer: -6 },
+        { prompt: "? - 5 = 13", answer: 18 },
+        { prompt: "9 × ? = 27", answer: 3 },
+        { prompt: "? / 3 = 6", answer: 18 },
+        { prompt: "? + 11 = 4", answer: -7 },
+        { prompt: "7 × ? = 49", answer: 7 },
+        { prompt: "? ÷ 2 = 9", answer: 18 },
+        { prompt: "15 - ? = 8", answer: 7 },
+    ];
+
+    return buildPreAlgebraPromptDeck(prompts, order);
+};
+
+const buildEquivalentExpressionCards = (order: Order): ICard[] => {
+    const prompts = [
+        { prompt: "3(x + 2) = 3x + ?", answer: 6 },
+        { prompt: "2x + 3x = ? if x = 1", answer: 5 },
+        { prompt: "5(2 + 3) = ?", answer: 25 },
+        { prompt: "4 + x + 3 = ? if x = 5", answer: 12 },
+        { prompt: "3(x + 1) = ? if x = 2", answer: 9 },
+        { prompt: "2(x + 4) = ? if x = 3", answer: 14 },
+        { prompt: "7 + (x + 2) = ? if x = 5", answer: 14 },
+        { prompt: "5x - 2x = ? if x = 6", answer: 18 },
+        { prompt: "x + 4 + 3 = ? if x = 2", answer: 9 },
+        { prompt: "2(y + 5) = ? if y = 3", answer: 16 },
+        { prompt: "4x + 2x = ? if x = 6", answer: 36 },
+        { prompt: "6 + 2 + x = ? if x = 7", answer: 15 },
+    ];
+
+    return buildPreAlgebraPromptDeck(prompts, order);
+};
+
+const buildReadinessMixCards = (order: Order): ICard[] => {
+    const prompts = [
+        ...buildSignedNumberCards("in-order").map((card) => ({ prompt: card.expression(), answer: Number(card.answer()) })),
+        ...buildAlgebraLanguageCards("in-order").map((card) => ({ prompt: card.expression(), answer: Number(card.answer()) })),
+        ...buildArithmeticRelationshipCards("in-order").map((card) => ({ prompt: card.expression(), answer: Number(card.answer()) })),
+        ...buildEquivalentExpressionCards("in-order").map((card) => ({ prompt: card.expression(), answer: Number(card.answer()) })),
+    ];
+
+    return buildPreAlgebraPromptDeck(prompts, order);
+};
+
+const buildPreAlgebraCards = (settings: PreAlgebraSettings): ICard[] => {
+    const promptsByLevel: Record<PreAlgebraLevel, ICard[]> = {
+        "signed-number-sense": buildSignedNumberCards(settings.order),
+        "algebra-language": buildAlgebraLanguageCards(settings.order),
+        "arithmetic-relationships": buildArithmeticRelationshipCards(settings.order),
+        "equivalent-expressions": buildEquivalentExpressionCards(settings.order),
+        "readiness-mix": buildReadinessMixCards(settings.order),
+    };
+
+    return promptsByLevel[settings.level];
 };
 
 export const concepts: Concept[] = [
@@ -300,6 +419,64 @@ export const concepts: Concept[] = [
                     kind: "decimal",
                     carry: "carry",
                     precision: "advanced",
+                    order: "random",
+                },
+            },
+        ],
+    },
+    {
+        id: "pre-algebra-readiness",
+        label: "Pre-Algebra Readiness",
+        textColor: "text-violet-500",
+        getDefaultSettings: () => ({
+            kind: "pre-algebra",
+            level: "signed-number-sense",
+            order: "in-order",
+        }),
+        buildFlashcards: (settings) => buildPreAlgebraCards(settings as PreAlgebraSettings),
+        levels: [
+            {
+                id: "signed-number-sense",
+                label: "Level 1 • Signed Number Sense",
+                settings: {
+                    kind: "pre-algebra",
+                    level: "signed-number-sense",
+                    order: "in-order",
+                },
+            },
+            {
+                id: "algebra-language",
+                label: "Level 2 • Algebra Language",
+                settings: {
+                    kind: "pre-algebra",
+                    level: "algebra-language",
+                    order: "in-order",
+                },
+            },
+            {
+                id: "arithmetic-relationships",
+                label: "Level 3 • Arithmetic Relationships",
+                settings: {
+                    kind: "pre-algebra",
+                    level: "arithmetic-relationships",
+                    order: "in-order",
+                },
+            },
+            {
+                id: "equivalent-expressions",
+                label: "Level 4 • Equivalent Expressions",
+                settings: {
+                    kind: "pre-algebra",
+                    level: "equivalent-expressions",
+                    order: "in-order",
+                },
+            },
+            {
+                id: "readiness-mix",
+                label: "Level 5 • Readiness Mix",
+                settings: {
+                    kind: "pre-algebra",
+                    level: "readiness-mix",
                     order: "random",
                 },
             },
