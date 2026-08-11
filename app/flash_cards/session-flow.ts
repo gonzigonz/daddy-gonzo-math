@@ -57,6 +57,7 @@ export const getHintMessage = (
   hint?: string,
   explanation?: string,
   stats?: Partial<SkillStats>,
+  example?: string,
 ): string => {
   const repeatedDifficultyMessage = getRepeatedDifficultyMessage(stats, skill);
   if (repeatedDifficultyMessage) {
@@ -64,7 +65,14 @@ export const getHintMessage = (
   }
 
   if (mode === 'practice') {
-    return hint ?? explanation ?? 'Try simplifying the expression one step at a time.';
+    const decimalExample = example ?? '3.6 + 12.5 = (3 + 12) + (0.6 + 0.5) = 15 + 1.1 = 16.1.';
+    const baseHint = hint ?? explanation ?? 'Try simplifying the expression one step at a time.';
+
+    if (skill === 'decimal') {
+      return `${baseHint} Example: ${decimalExample}`;
+    }
+
+    return baseHint;
   }
 
   if (skill) {

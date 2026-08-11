@@ -24,3 +24,8 @@ test('mastery mode nudges learners toward human help instead of guessing', () =>
   assert.match(getHintMessage('mastery', 'signed-numbers', 'Use the number line.', 'Subtracting a positive means moving further left.'), /teacher|parent|class notes/i);
   assert.match(getHintMessage('practice', 'signed-numbers', 'Use the number line.', 'Subtracting a positive means moving further left.'), /number line/i);
 });
+
+test('decimal practice hints include a concrete example', () => {
+  const hint = getHintMessage('practice', 'decimal', undefined, undefined, undefined, '3.6 + 12.5 = (3 + 12) + (0.6 + 0.5) = 15 + 1.1 = 16.1.');
+  assert.match(hint, /3\.6.*12\.5|\(3 \+ 12\)|16\.1/i);
+});
