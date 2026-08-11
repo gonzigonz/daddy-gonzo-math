@@ -1,231 +1,60 @@
 'use client'
-import { useEffect, useRef, useState } from "react"
-import { ICard, MultiplicationCard } from "./flash_cards/card"
+import { useRef, useState } from "react"
+import { ICard } from "./flash_cards/card"
+import {
+  ConceptSettings,
+  concepts,
+  FACTOR_OPTIONS,
+  getConcept,
+  IntegerSettings,
+  MultiplicationSettings,
+  DecimalSettings,
+  Order,
+} from "./flash_cards/concepts"
 
 const TICK_MARK = "✓";
 const CROSS_MARK = "✗";
 const DEL_SYMBOL = "⌫";
 const REFRESH_SYMBOL = "↻";
-const SETTINGS_STORAGE_KEY = "daddy-gonzo-math-settings";
-const SESSION_STORAGE_KEY = "daddy-gonzo-math-session";
-const FACTOR_OPTIONS = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
 
-interface IFlashcardStack {
-  name: string;
-  textColor: string;
-}
+type SettingsByConcept = Record<string, ConceptSettings>;
 
-interface SessionSettings {
-  selectedFactors: number[];
-  order: "in-order" | "random";
-}
+const getInitialSettings = (): SettingsByConcept => concepts.reduce((settings, concept) => ({
+  ...settings,
+  [concept.id]: concept.getDefaultSettings(),
+}), {});
 
-type SavedSettings = Record<string, SessionSettings>;
-
-interface PersistedSessionState {
-  stackName: string;
-  score: number;
-  avgTime: number;
-  index: number;
-  userInput: string;
-  sessionStarted: boolean;
-  sessionFinished: boolean;
-  flashcards: Array<{ term1: number; term2: number; status: string }>;
-}
-
-const stacks: { [key: string]: IFlashcardStack } = {
-  indy: {
-    name: "indy",
-    textColor: "text-yellow-500",
-  },
-  bailey: {
-    name: "bailey",
-    textColor: "text-indigo-500",
-  },
-};
-
-const getDefaultSettings = (stackName: string): SessionSettings => ({
-  selectedFactors: stackName === "indy" ? [2, 3, 4] : [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
-  order: "random",
-});
-
-const buildFlashcards = (settings: SessionSettings, shuffle = true): ICard[] => {
-  const cards: ICard[] = [];
-
-  settings.selectedFactors.forEach((factor) => {
-    for (let secondTerm = 2; secondTerm <= 12; secondTerm += 1) {
-      cards.push(new MultiplicationCard(factor, secondTerm));
-    }
-  });
-
-  if (shuffle && settings.order === "random") {
-    for (let index = cards.length - 1; index > 0; index -= 1) {
-      const j = Math.floor(Math.random() * (index + 1));
-      [cards[index], cards[j]] = [cards[j], cards[index]];
-    }
-  }
-
+const buildDeck = (conceptId: string, settings: SettingsByConcept): ICard[] => {
+  const concept = getConcept(conceptId);
+  const cards = concept.buildFlashcards(settings[conceptId] ?? concept.getDefaultSettings());
+  cards[0].status = "pending";
   return cards;
 };
-
-const loadSavedSettings = (): SavedSettings => {
-  if (typeof window === "undefined") {
-    return {};
-  }
-
-  try {
-    const saved = window.localStorage.getItem(SETTINGS_STORAGE_KEY);
-    if (!saved) {
-      return {};
-    }
-
-    return JSON.parse(saved) as SavedSettings;
-  } catch {
-    return {};
-  }
-};
-
-const loadPersistedSession = (): PersistedSessionState | null => {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
-  try {
-    const saved = window.localStorage.getItem(SESSION_STORAGE_KEY);
-    if (!saved) {
-      return null;
-    }
-
-    return JSON.parse(saved) as PersistedSessionState;
-  } catch {
-    return null;
-  }
-};
-
-const restoreFlashcards = (savedCards: PersistedSessionState["flashcards"]): ICard[] => {
-  const cards = savedCards.map((card) => {
-    const restoredCard = new MultiplicationCard(card.term1, card.term2);
-    restoredCard.status = card.status;
-    return restoredCard;
-  });
-
-  return cards;
-};
-
-const cloneFlashcards = (cards: ICard[]): ICard[] => cards.map((card) => {
-  const source = card as MultiplicationCard;
-  const cloned = new MultiplicationCard(source.term1, source.term2);
-  cloned.status = source.status;
-  return cloned;
-});
 
 export default function Home() {
-  const defaultStackName = "indy";
-  const initialDeck = buildFlashcards(getDefaultSettings(defaultStackName), false);
+  const defaultConceptId = concepts[0].id;
+  const initialSettings = getInitialSettings();
+  const initialDeck = getConcept(defaultConceptId).buildFlashcards(initialSettings[defaultConceptId]);
   initialDeck[0].status = "pending";
 
   const [score, setScore] = useState(0);
   const [avgTime, setAvgTime] = useState(0);
-  const [stackName, setStackName] = useState(defaultStackName);
+  const [conceptId, setConceptId] = useState(defaultConceptId);
   const [userInput, setUserInput] = useState("");
   const [index, setIndex] = useState(0);
   const [flashcards, setFlashCards] = useState<ICard[]>(initialDeck);
   const [card, setCard] = useState<ICard>(initialDeck[0]);
   const [sessionStarted, setSessionStarted] = useState(false);
   const [sessionFinished, setSessionFinished] = useState(false);
-  const [stackSettings, setStackSettings] = useState<SavedSettings>(() => ({
-    indy: getDefaultSettings("indy"),
-    bailey: getDefaultSettings("bailey"),
-  }));
-  const [hasHydrated, setHasHydrated] = useState(false);
+  const [conceptSettings, setConceptSettings] = useState<SettingsByConcept>(initialSettings);
 
   const startTime = useRef<number>(0);
   const totalTime = useRef<number>(0);
   const count = useRef<number>(0);
 
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    window.localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(stackSettings));
-  }, [stackSettings]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    const saved = loadSavedSettings();
-    const nextSettings: SavedSettings = {
-      indy: saved.indy ?? getDefaultSettings("indy"),
-      bailey: saved.bailey ?? getDefaultSettings("bailey"),
-    };
-
-    setStackSettings(nextSettings);
-
-    const savedSession = loadPersistedSession();
-    if (savedSession) {
-      const restoredCards = restoreFlashcards(savedSession.flashcards);
-      const restoredCard = restoredCards[savedSession.index] ?? restoredCards[0];
-      setFlashCards(restoredCards);
-      setCard(restoredCard);
-      setIndex(savedSession.index);
-      setScore(savedSession.score);
-      setAvgTime(savedSession.avgTime);
-      setUserInput(savedSession.userInput);
-      setSessionStarted(savedSession.sessionStarted);
-      setSessionFinished(savedSession.sessionFinished);
-      setStackName(savedSession.stackName);
-      setHasHydrated(true);
-      return;
-    }
-
-    setHasHydrated(true);
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    if (sessionStarted || sessionFinished || flashcards.some((card) => card.status !== "")) {
-      const persistedSession: PersistedSessionState = {
-        stackName,
-        score,
-        avgTime,
-        index,
-        userInput,
-        sessionStarted,
-        sessionFinished,
-        flashcards: flashcards.map((card) => ({
-          term1: (card as MultiplicationCard).term1 ?? 0,
-          term2: (card as MultiplicationCard).term2 ?? 0,
-          status: card.status,
-        })),
-      };
-
-      window.localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(persistedSession));
-      return;
-    }
-
-    window.localStorage.removeItem(SESSION_STORAGE_KEY);
-  }, [avgTime, flashcards, index, score, sessionFinished, sessionStarted, stackName, userInput]);
-
-  useEffect(() => {
-    if (!hasHydrated) {
-      return;
-    }
-
-    if (!sessionStarted && !sessionFinished && flashcards.every((card) => card.status === "")) {
-      const activeSettings = stackSettings[stackName] ?? getDefaultSettings(stackName);
-      const initialDeck = buildFlashcards(activeSettings, true);
-      initialDeck[0].status = "pending";
-      setFlashCards(initialDeck);
-      setCard(initialDeck[0]);
-      setIndex(0);
-    }
-  }, [hasHydrated, sessionStarted, sessionFinished, stackName, stackSettings, flashcards]);
+  const activeConcept = getConcept(conceptId);
+  const activeSettings = conceptSettings[conceptId] ?? activeConcept.getDefaultSettings();
+  const averageSeconds = Math.round(avgTime / 100) / 10;
 
   const resetSessionState = () => {
     setScore(0);
@@ -238,47 +67,36 @@ export default function Home() {
     setSessionFinished(false);
   };
 
-  const isSessionComplete = (cards: ICard[]) => cards.every((c) => c.status === "pass" || c.status === "fail");
-
-  const applyDeck = (name: string, settings: SessionSettings) => {
-    const nextCards = buildFlashcards(settings);
-    nextCards[0].status = "pending";
+  const applyDeck = (nextConceptId: string) => {
+    const nextCards = buildDeck(nextConceptId, conceptSettings);
     setFlashCards(nextCards);
     setIndex(0);
     setCard(nextCards[0]);
-    setStackName(name);
+    setConceptId(nextConceptId);
   };
 
   const startSession = () => {
     resetSessionState();
-
-    const activeSettings = stackSettings[stackName] ?? getDefaultSettings(stackName);
-    const nextCards = buildFlashcards(activeSettings);
-    nextCards[0].status = "pending";
+    const nextCards = buildDeck(conceptId, conceptSettings);
     setFlashCards(nextCards);
     setCard(nextCards[0]);
     setIndex(0);
-
     setSessionStarted(true);
     setSessionFinished(false);
     startTime.current = Date.now();
-    count.current = 0;
-    totalTime.current = 0;
-    setScore(0);
-    setAvgTime(0);
-    setUserInput("");
+  };
+
+  const refreshSession = () => {
+    resetSessionState();
+    const nextCards = buildDeck(conceptId, conceptSettings);
+    setFlashCards(nextCards);
+    setIndex(0);
+    setCard(nextCards[0]);
   };
 
   const handleButtonClick = async (value: string) => {
     if (value === REFRESH_SYMBOL) {
-      resetSessionState();
-
-      const activeSettings = stackSettings[stackName] ?? getDefaultSettings(stackName);
-      const nextCards = buildFlashcards(activeSettings);
-      nextCards[0].status = "pending";
-      setFlashCards(nextCards);
-      setIndex(0);
-      setCard(nextCards[0]);
+      refreshSession();
       return;
     }
 
@@ -295,39 +113,37 @@ export default function Home() {
       return;
     }
 
-    const userAnswer = userInput + value;
-    setUserInput(userAnswer);
-
+    const nextInput = userInput + value;
+    setUserInput(nextInput);
     const answer = card.answer();
-    if (userAnswer.length !== answer.length) {
+    if (nextInput.length !== answer.length) {
       return;
     }
 
-    await new Promise((f) => setTimeout(f, 300));
-
+    await new Promise((resolve) => setTimeout(resolve, 300));
     const elapsedTime = Date.now() - startTime.current - 300;
-    const updatedFlashcards = cloneFlashcards(flashcards);
+    const updatedFlashcards = flashcards.map((currentCard) => currentCard.clone());
 
-    if (userAnswer === answer) {
+    if (nextInput === answer) {
       updatedFlashcards[index].status = "pass";
       setUserInput(TICK_MARK);
-      setScore((prev) => prev + 1);
+      setScore((previousScore) => previousScore + 1);
       totalTime.current += elapsedTime;
       count.current += 1;
       setAvgTime(Math.round(totalTime.current / count.current));
     } else {
       updatedFlashcards[index].status = "fail";
       setUserInput(CROSS_MARK);
-      setScore((prev) => prev - 1);
+      setScore((previousScore) => previousScore - 1);
       count.current += 1;
     }
 
-    await new Promise((f) => setTimeout(f, 300));
-
-    if (isSessionComplete(updatedFlashcards)) {
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    if (updatedFlashcards.every((currentCard) => currentCard.status === "pass" || currentCard.status === "fail")) {
       setSessionStarted(false);
       setSessionFinished(true);
       setUserInput("");
+      setFlashCards(updatedFlashcards);
       return;
     }
 
@@ -336,10 +152,7 @@ export default function Home() {
       nextIndex = nextIndex === updatedFlashcards.length - 1 ? 0 : nextIndex + 1;
     }
 
-    if (!updatedFlashcards[nextIndex].status) {
-      updatedFlashcards[nextIndex].status = "pending";
-    }
-
+    updatedFlashcards[nextIndex].status = "pending";
     setFlashCards(updatedFlashcards);
     setIndex(nextIndex);
     setCard(updatedFlashcards[nextIndex]);
@@ -347,55 +160,86 @@ export default function Home() {
     startTime.current = Date.now();
   };
 
-  const handleStackButtonClick = (name: string) => {
+  const handleConceptClick = (nextConceptId: string) => {
     resetSessionState();
-    const defaultSettings = stackSettings[name] ?? getDefaultSettings(name);
-    applyDeck(name, defaultSettings);
+    applyDeck(nextConceptId);
   };
 
-  const toggleFactor = (factor: number) => {
-    const currentSettings = stackSettings[stackName] ?? getDefaultSettings(stackName);
-    const currentFactors = currentSettings.selectedFactors;
+  const updateSettings = (nextSettings: ConceptSettings) => {
+    setConceptSettings((previousSettings) => ({ ...previousSettings, [conceptId]: nextSettings }));
+  };
 
-    if (currentFactors.includes(factor)) {
-      if (currentFactors.length === 1) {
-        return;
-      }
+  const isSameSettings = (left: ConceptSettings, right: ConceptSettings): boolean => JSON.stringify(left) === JSON.stringify(right);
 
-      setStackSettings((prev) => ({
-        ...prev,
-        [stackName]: {
-          ...currentSettings,
-          selectedFactors: currentFactors.filter((item) => item !== factor),
-        },
-      }));
-    } else {
-      setStackSettings((prev) => ({
-        ...prev,
-        [stackName]: {
-          ...currentSettings,
-          selectedFactors: [...currentFactors, factor].sort((a, b) => a - b),
-        },
-      }));
+  const handleLevelChange = (levelSettings: ConceptSettings) => {
+    updateSettings(levelSettings);
+  };
+
+  const handleOrderChange = (order: Order) => {
+    if (activeSettings.kind === "integer" || activeSettings.kind === "multiplication") {
+      updateSettings({ ...activeSettings, order } as ConceptSettings);
     }
   };
 
-  const handleOrderChange = (order: SessionSettings["order"]) => {
-    const currentSettings = stackSettings[stackName] ?? getDefaultSettings(stackName);
-    setStackSettings((prev) => ({
-      ...prev,
-      [stackName]: {
-        ...currentSettings,
-        order,
-      },
-    }));
+  const toggleIntegerFactor = (factor: number) => {
+    if (activeSettings.kind !== "integer") {
+      return;
+    }
+
+    const settings = activeSettings as IntegerSettings;
+    const selectedFactors = settings.selectedFactors.includes(factor)
+      ? settings.selectedFactors.filter((item) => item !== factor)
+      : [...settings.selectedFactors, factor].sort((a, b) => a - b);
+
+    if (selectedFactors.length > 0) {
+      updateSettings({ ...settings, selectedFactors });
+    }
+  };
+
+  const toggleMultiplicationFactor = (factor: number) => {
+    if (activeSettings.kind !== "multiplication") {
+      return;
+    }
+
+    const settings = activeSettings as MultiplicationSettings;
+    const selectedFactors = settings.selectedFactors.includes(factor)
+      ? settings.selectedFactors.filter((item) => item !== factor)
+      : [...settings.selectedFactors, factor].sort((a, b) => a - b);
+
+    if (selectedFactors.length > 0) {
+      updateSettings({ ...settings, selectedFactors });
+    }
+  };
+
+  const handleIntegerModeChange = (mode: IntegerSettings["mode"]) => {
+    if (activeSettings.kind === "integer") {
+      updateSettings({ ...activeSettings, mode });
+    }
+  };
+
+  const handleMultiplicationModeChange = (mode: MultiplicationSettings["mode"]) => {
+    if (activeSettings.kind === "multiplication") {
+      updateSettings({ ...activeSettings, mode });
+    }
+  };
+
+  const handleDecimalCarryChange = (carry: DecimalSettings["carry"]) => {
+    if (activeSettings.kind === "decimal") {
+      updateSettings({ ...activeSettings, carry });
+    }
+  };
+
+  const handleDecimalPrecisionChange = (precision: DecimalSettings["precision"]) => {
+    if (activeSettings.kind === "decimal") {
+      updateSettings({ ...activeSettings, precision });
+    }
   };
 
   const handleCardButtonClick = (cardIndex: number) => {
-    const updatedFlashcards = cloneFlashcards(flashcards);
+    const updatedFlashcards = flashcards.map((currentCard) => currentCard.clone());
 
     if (!sessionStarted) {
-      updatedFlashcards.forEach((c) => c.clearStatus());
+      updatedFlashcards.forEach((currentCard) => currentCard.clearStatus());
       updatedFlashcards[cardIndex].status = "pending";
       setFlashCards(updatedFlashcards);
       setIndex(cardIndex);
@@ -408,13 +252,11 @@ export default function Home() {
       return;
     }
 
-    if (card.status === "pending") {
-      const pendingCard = updatedFlashcards.find((c) => c.status === "pending");
-      if (pendingCard) {
-        pendingCard.clearStatus();
+    updatedFlashcards.forEach((currentCard) => {
+      if (currentCard.status === "pending") {
+        currentCard.clearStatus();
       }
-    }
-
+    });
     updatedFlashcards[cardIndex].status = "pending";
     setFlashCards(updatedFlashcards);
     setUserInput("");
@@ -423,26 +265,11 @@ export default function Home() {
     startTime.current = Date.now();
   };
 
-  const buttons = [
-    "7", "8", "9",
-    "4", "5", "6",
-    "1", "2", "3",
-    "-", "0", DEL_SYMBOL,
-  ];
-
-  const statusIcon = (status: string): string => {
-    switch (status) {
-      case "pass":
-        return TICK_MARK;
-      case "fail":
-        return CROSS_MARK;
-      default:
-        return "-";
-    }
-  };
-
-  const activeSettings = stackSettings[stackName] ?? getDefaultSettings(stackName);
-  const averageSeconds = Math.round(avgTime / 100) / 10;
+  const buttons = ["7", "8", "9", "4", "5", "6", "1", "2", "3", ".", "0", DEL_SYMBOL];
+  const statusIcon = (status: string): string => status === "pass" ? TICK_MARK : status === "fail" ? CROSS_MARK : "-";
+  const integerSettings = activeSettings.kind === "integer" ? activeSettings as IntegerSettings : null;
+  const multiplicationSettings = activeSettings.kind === "multiplication" ? activeSettings as MultiplicationSettings : null;
+  const decimalSettings = activeSettings.kind === "decimal" ? activeSettings as DecimalSettings : null;
 
   return (
     <main className="flex min-h-screen flex-col items-center py-4 px-4 sm:p-6 md:py-10 md:px-8">
@@ -452,106 +279,129 @@ export default function Home() {
           <p className="text-center text-white bg-pink-400">Score: {score}</p>
           <p className="text-center text-white bg-pink-600">Avg Time: {averageSeconds}s</p>
         </div>
-        <div className="grid col-start-2 grid-cols-3 gap-2 my-2">
+        <div className="grid grid-cols-2 gap-2 my-2 sm:grid-cols-4">
+          {concepts.map((concept) => (
+            <button
+              key={concept.id}
+              onClick={() => handleConceptClick(concept.id)}
+              className={`text-lg sm:text-2xl ${concept.textColor} bg-sky-500/25 hover:bg-sky-200/25 rounded-lg`}
+            >{concept.label}</button>
+          ))}
           <button
-            key="indy-button"
-            onClick={() => handleStackButtonClick("indy")}
-            className="text-2xl text-sky-500 bg-sky-500/25 hover:bg-sky-200/25 rounded-lg"
-          >Indy</button>
-          <button
-            key="bailey-button"
-            onClick={() => handleStackButtonClick("bailey")}
-            className="text-2xl text-sky-500 bg-sky-500/25 hover:bg-sky-200/25 rounded-lg"
-          >Bailey</button>
-          <button
-            key="refresh-button"
-            onClick={() => handleButtonClick(REFRESH_SYMBOL)}
+            onClick={refreshSession}
             className="text-2xl text-sky-500 bg-sky-500/25 hover:bg-sky-200/25 rounded-lg"
           >{REFRESH_SYMBOL}</button>
         </div>
         <div className="grid grid-cols-12 mt-6">
-          {flashcards.map((c, index) => (
+          {flashcards.map((currentCard, currentIndex) => (
             <button
-              key={index}
-              onClick={() => handleCardButtonClick(index)}
-              className={c.className()}
-            >{statusIcon(c.status)}</button>
+              key={currentIndex}
+              onClick={() => handleCardButtonClick(currentIndex)}
+              className={currentCard.className()}
+            >{statusIcon(currentCard.status)}</button>
           ))}
         </div>
         <div className="grid grid-cols-3 gap-2 my-2">
-          <input
-            type="text"
-            className={`${stacks[stackName].textColor} text-4xl text-center col-span-2 rounded-lg focus:outline-none`}
-            value={card.expression()}
-            readOnly
-          />
-          <input
-            type="text"
-            className={`${stacks[stackName].textColor} text-4xl text-center rounded-lg focus:outline-none`}
-            value={userInput}
-            readOnly
-          />
+          <input type="text" className={`${activeConcept.textColor} text-4xl text-center col-span-2 rounded-lg focus:outline-none`} value={card.expression()} readOnly />
+          <input type="text" className={`${activeConcept.textColor} text-4xl text-center rounded-lg focus:outline-none`} value={userInput} readOnly />
         </div>
 
         {!sessionStarted && !sessionFinished && (
           <div className="mt-4 rounded-xl border border-sky-200 bg-sky-50 p-4 text-sky-800">
             <h2 className="text-xl font-bold">Practice setup</h2>
-            <p className="mt-2 text-sm">Pick the tables to practice and whether they should come in order or shuffled.</p>
+            <p className="mt-2 text-sm">Keep it short and repeatable: up to 10 questions per round.</p>
 
             <div className="mt-4">
-              <p className="mb-2 font-semibold">Tables</p>
-              <div className="flex flex-wrap gap-2">
-                {FACTOR_OPTIONS.map((factor) => {
-                  const isSelected = activeSettings.selectedFactors.includes(factor);
+              <p className="mb-2 font-semibold">Levels</p>
+              <div className="space-y-2">
+                {activeConcept.levels.map((level, levelIndex) => {
+                  const chosen = isSameSettings(level.settings, activeSettings);
 
                   return (
                     <button
-                      key={factor}
-                      onClick={() => toggleFactor(factor)}
-                      className={`rounded-full px-3 py-2 text-sm font-semibold ${
-                        isSelected
-                          ? "bg-sky-600 text-white"
-                          : "bg-white text-sky-700 ring-1 ring-sky-300"
-                      }`}
+                      key={level.id}
+                      onClick={() => handleLevelChange(level.settings)}
+                      className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm font-semibold ${chosen ? "bg-sky-600 text-white" : "bg-white text-sky-700 ring-1 ring-sky-300"}`}
                     >
-                      {factor}x
+                      <span>{level.label}</span>
+                      <span className="ml-4 text-xs font-bold">Level {levelIndex + 1}</span>
                     </button>
                   );
                 })}
               </div>
             </div>
 
-            <div className="mt-4">
-              <p className="mb-2 font-semibold">Order</p>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  onClick={() => handleOrderChange("in-order")}
-                  className={`rounded-full px-3 py-2 text-sm font-semibold ${
-                    activeSettings.order === "in-order"
-                      ? "bg-emerald-600 text-white"
-                      : "bg-white text-emerald-700 ring-1 ring-emerald-300"
-                  }`}
-                >
-                  In order
-                </button>
-                <button
-                  onClick={() => handleOrderChange("random")}
-                  className={`rounded-full px-3 py-2 text-sm font-semibold ${
-                    activeSettings.order === "random"
-                      ? "bg-emerald-600 text-white"
-                      : "bg-white text-emerald-700 ring-1 ring-emerald-300"
-                  }`}
-                >
-                  Random
-                </button>
+            {integerSettings && (
+              <div className="mt-4">
+                <p className="mb-2 font-semibold">Numbers</p>
+                <div className="flex flex-wrap gap-2">
+                  {FACTOR_OPTIONS.map((factor) => (
+                    <button key={factor} onClick={() => toggleIntegerFactor(factor)} className={`rounded-full px-3 py-2 text-sm font-semibold ${integerSettings.selectedFactors.includes(factor) ? "bg-sky-600 text-white" : "bg-white text-sky-700 ring-1 ring-sky-300"}`}>
+                      {factor}
+                    </button>
+                  ))}
+                </div>
+                <div className="mt-4">
+                  <p className="mb-2 font-semibold">Operation</p>
+                  <div className="flex flex-wrap gap-2">
+                    <button onClick={() => handleIntegerModeChange("addition")} className={`rounded-full px-3 py-2 text-sm font-semibold ${integerSettings.mode === "addition" ? "bg-violet-600 text-white" : "bg-white text-violet-700 ring-1 ring-violet-300"}`}>Add</button>
+                    <button onClick={() => handleIntegerModeChange("subtraction")} className={`rounded-full px-3 py-2 text-sm font-semibold ${integerSettings.mode === "subtraction" ? "bg-violet-600 text-white" : "bg-white text-violet-700 ring-1 ring-violet-300"}`}>Subtract</button>
+                    <button onClick={() => handleIntegerModeChange("both")} className={`rounded-full px-3 py-2 text-sm font-semibold ${integerSettings.mode === "both" ? "bg-violet-600 text-white" : "bg-white text-violet-700 ring-1 ring-violet-300"}`}>Both</button>
+                  </div>
+                </div>
               </div>
-            </div>
+            )}
+
+            {multiplicationSettings && (
+              <div className="mt-4">
+                <p className="mb-2 font-semibold">Tables</p>
+                <div className="flex flex-wrap gap-2">
+                  {FACTOR_OPTIONS.map((factor) => (
+                    <button key={factor} onClick={() => toggleMultiplicationFactor(factor)} className={`rounded-full px-3 py-2 text-sm font-semibold ${multiplicationSettings.selectedFactors.includes(factor) ? "bg-sky-600 text-white" : "bg-white text-sky-700 ring-1 ring-sky-300"}`}>
+                      {factor}x
+                    </button>
+                  ))}
+                </div>
+                <div className="mt-4">
+                  <p className="mb-2 font-semibold">Operation</p>
+                  <div className="flex flex-wrap gap-2">
+                    <button onClick={() => handleMultiplicationModeChange("multiplication")} className={`rounded-full px-3 py-2 text-sm font-semibold ${multiplicationSettings.mode === "multiplication" ? "bg-violet-600 text-white" : "bg-white text-violet-700 ring-1 ring-violet-300"}`}>Multiply</button>
+                    <button onClick={() => handleMultiplicationModeChange("division")} className={`rounded-full px-3 py-2 text-sm font-semibold ${multiplicationSettings.mode === "division" ? "bg-violet-600 text-white" : "bg-white text-violet-700 ring-1 ring-violet-300"}`}>Divide</button>
+                    <button onClick={() => handleMultiplicationModeChange("both")} className={`rounded-full px-3 py-2 text-sm font-semibold ${multiplicationSettings.mode === "both" ? "bg-violet-600 text-white" : "bg-white text-violet-700 ring-1 ring-violet-300"}`}>Both</button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {decimalSettings && (
+              <div className="mt-4">
+                <p className="mb-2 font-semibold">Decimal addition</p>
+                <div className="flex flex-wrap gap-2">
+                  <button onClick={() => handleDecimalPrecisionChange("simple")} className={`rounded-full px-3 py-2 text-sm font-semibold ${decimalSettings.precision === "simple" ? "bg-emerald-600 text-white" : "bg-white text-emerald-700 ring-1 ring-emerald-300"}`}>Simple</button>
+                  <button onClick={() => handleDecimalPrecisionChange("advanced")} className={`rounded-full px-3 py-2 text-sm font-semibold ${decimalSettings.precision === "advanced" ? "bg-emerald-600 text-white" : "bg-white text-emerald-700 ring-1 ring-emerald-300"}`}>Advanced</button>
+                </div>
+                <div className="mt-4">
+                  <p className="mb-2 font-semibold">Regrouping</p>
+                  <div className="flex flex-wrap gap-2">
+                    <button onClick={() => handleDecimalCarryChange("no-carry")} className={`rounded-full px-3 py-2 text-sm font-semibold ${decimalSettings.carry === "no-carry" ? "bg-emerald-600 text-white" : "bg-white text-emerald-700 ring-1 ring-emerald-300"}`}>No regrouping</button>
+                    <button onClick={() => handleDecimalCarryChange("carry")} className={`rounded-full px-3 py-2 text-sm font-semibold ${decimalSettings.carry === "carry" ? "bg-emerald-600 text-white" : "bg-white text-emerald-700 ring-1 ring-emerald-300"}`}>Regrouping</button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {(integerSettings || multiplicationSettings) && (
+              <div className="mt-4">
+                <p className="mb-2 font-semibold">Order</p>
+                <div className="flex flex-wrap gap-2">
+                  <button onClick={() => handleOrderChange("in-order")} className={`rounded-full px-3 py-2 text-sm font-semibold ${activeSettings.order === "in-order" ? "bg-emerald-600 text-white" : "bg-white text-emerald-700 ring-1 ring-emerald-300"}`}>In order</button>
+                  <button onClick={() => handleOrderChange("random")} className={`rounded-full px-3 py-2 text-sm font-semibold ${activeSettings.order === "random" ? "bg-emerald-600 text-white" : "bg-white text-emerald-700 ring-1 ring-emerald-300"}`}>Random</button>
+                </div>
+              </div>
+            )}
 
             <div className="mt-4 flex justify-center">
-              <button
-                onClick={startSession}
-                className="px-8 py-6 text-5xl font-bold text-white bg-emerald-500 hover:bg-emerald-600 rounded-xl"
-              >START</button>
+              <button onClick={startSession} className="px-8 py-6 text-5xl font-bold text-white bg-emerald-500 hover:bg-emerald-600 rounded-xl">START</button>
             </div>
           </div>
         )}
@@ -560,22 +410,15 @@ export default function Home() {
           <div className="p-4 mt-4 bg-sky-100 rounded-lg text-center">
             <h2 className="text-3xl font-bold text-sky-700">Session Complete!</h2>
             <p className="text-xl mt-2">Final score: {score}</p>
-            <p className="text-xl mt-1">Avg time: {Math.round(avgTime / 100) / 10}s</p>
-            <button
-              onClick={startSession}
-              className="mt-4 px-6 py-3 text-2xl text-white bg-blue-500 hover:bg-blue-600 rounded-lg"
-            >Restart</button>
+            <p className="text-xl mt-1">Avg time: {averageSeconds}s</p>
+            <button onClick={startSession} className="mt-4 px-6 py-3 text-2xl text-white bg-blue-500 hover:bg-blue-600 rounded-lg">Restart</button>
           </div>
         )}
 
         {sessionStarted && !sessionFinished && (
           <div className="grid grid-cols-3 gap-2">
-            {buttons.map((btn) => (
-              <button
-                key={btn}
-                onClick={() => handleButtonClick(btn)}
-                className="text-4xl text-sky-600 bg-sky-200 hover:bg-sky-300 rounded-lg"
-              >{btn}</button>
+            {buttons.map((button) => (
+              <button key={button} onClick={() => handleButtonClick(button)} className="text-4xl text-sky-600 bg-sky-200 hover:bg-sky-300 rounded-lg">{button}</button>
             ))}
           </div>
         )}
