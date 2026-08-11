@@ -10,6 +10,7 @@ import {
   MultiplicationSettings,
   DecimalSettings,
   Order,
+  PreAlgebraSettings,
 } from "./flash_cards/concepts"
 
 const TICK_MARK = "✓";
@@ -104,8 +105,16 @@ export default function Home() {
       return;
     }
 
+    if (value === "-") {
+      if (userInput.includes("-")) {
+        return;
+      }
+      setUserInput((prevInput) => prevInput === "" ? "-" : prevInput);
+      return;
+    }
+
     if (value === DEL_SYMBOL) {
-      setUserInput((prevInput) => prevInput.slice(0, -1));
+      setUserInput((prevInput) => prevInput === "-" ? "" : prevInput.slice(0, -1));
       return;
     }
 
@@ -176,7 +185,7 @@ export default function Home() {
   };
 
   const handleOrderChange = (order: Order) => {
-    if (activeSettings.kind === "integer" || activeSettings.kind === "multiplication") {
+    if (activeSettings.kind === "integer" || activeSettings.kind === "multiplication" || activeSettings.kind === "pre-algebra") {
       updateSettings({ ...activeSettings, order } as ConceptSettings);
     }
   };
@@ -265,11 +274,12 @@ export default function Home() {
     startTime.current = Date.now();
   };
 
-  const buttons = ["7", "8", "9", "4", "5", "6", "1", "2", "3", ".", "0", DEL_SYMBOL];
+  const buttons = ["7", "8", "9", "4", "5", "6", "1", "2", "3", "-", "0", ".", DEL_SYMBOL];
   const statusIcon = (status: string): string => status === "pass" ? TICK_MARK : status === "fail" ? CROSS_MARK : "-";
   const integerSettings = activeSettings.kind === "integer" ? activeSettings as IntegerSettings : null;
   const multiplicationSettings = activeSettings.kind === "multiplication" ? activeSettings as MultiplicationSettings : null;
   const decimalSettings = activeSettings.kind === "decimal" ? activeSettings as DecimalSettings : null;
+  const preAlgebraSettings = activeSettings.kind === "pre-algebra" ? activeSettings as PreAlgebraSettings : null;
 
   return (
     <main className="flex min-h-screen flex-col items-center py-4 px-4 sm:p-6 md:py-10 md:px-8">
@@ -390,7 +400,7 @@ export default function Home() {
               </div>
             )}
 
-            {(integerSettings || multiplicationSettings) && (
+            {(integerSettings || multiplicationSettings || preAlgebraSettings) && (
               <div className="mt-4">
                 <p className="mb-2 font-semibold">Order</p>
                 <div className="flex flex-wrap gap-2">
