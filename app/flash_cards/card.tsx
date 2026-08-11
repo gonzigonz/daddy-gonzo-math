@@ -1,3 +1,10 @@
+export interface QuestionMetadata {
+    skill?: string;
+    questionFamily?: string;
+    hint?: string;
+    explanation?: string;
+}
+
 export interface ICard {
     status: string;
     answer(): string;
@@ -66,6 +73,40 @@ abstract class ArithmeticCard implements ICard {
     clearStatus(): void {
         this.status = "";
     }
+}
+
+export class PreAlgebraCard extends ArithmeticCard {
+    readonly skill?: string;
+    readonly questionFamily?: string;
+    readonly hint?: string;
+    readonly explanation?: string;
+
+    constructor(
+        readonly prompt: string,
+        readonly expectedValue: number,
+        metadata: QuestionMetadata = {},
+    ) {
+        super();
+        this.skill = metadata.skill;
+        this.questionFamily = metadata.questionFamily;
+        this.hint = metadata.hint;
+        this.explanation = metadata.explanation;
+    }
+
+    answer(): string { return this.expectedValue.toString(); }
+
+    clone(): ICard {
+        const card = new PreAlgebraCard(this.prompt, this.expectedValue, {
+            skill: this.skill,
+            questionFamily: this.questionFamily,
+            hint: this.hint,
+            explanation: this.explanation,
+        });
+        card.status = this.status;
+        return card;
+    }
+
+    expression(): string { return this.prompt; }
 }
 
 export class AdditionCard extends ArithmeticCard {

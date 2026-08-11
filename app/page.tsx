@@ -10,7 +10,17 @@ import {
   MultiplicationSettings,
   DecimalSettings,
   Order,
+  PreAlgebraSettings,
 } from "./flash_cards/concepts"
+import {
+  SessionMode,
+  SkillStats,
+  getDefaultSessionMode,
+  getHintMessage,
+  getSkillSummary,
+  isObviousAnswerMistake,
+  shouldAdvanceAfterAnswer,
+} from "./flash_cards/session-flow"
 
 const TICK_MARK = "✓";
 const CROSS_MARK = "✗";
@@ -47,6 +57,11 @@ export default function Home() {
   const [sessionStarted, setSessionStarted] = useState(false);
   const [sessionFinished, setSessionFinished] = useState(false);
   const [conceptSettings, setConceptSettings] = useState<SettingsByConcept>(initialSettings);
+  const [helpMessage, setHelpMessage] = useState<string>("");
+  const [sessionSummary, setSessionSummary] = useState<string[]>([]);
+  const [sessionMode, setSessionMode] = useState<SessionMode>(getDefaultSessionMode(defaultConceptId));
+  const [skillStats, setSkillStats] = useState<Record<string, SkillStats>>({});
+  const [showMeHow, setShowMeHow] = useState(false);
 
   const startTime = useRef<number>(0);
   const totalTime = useRef<number>(0);
@@ -60,6 +75,10 @@ export default function Home() {
     setScore(0);
     setAvgTime(0);
     setUserInput("");
+    setHelpMessage("");
+    setSessionSummary([]);
+    setSkillStats({});
+    setShowMeHow(false);
     count.current = 0;
     totalTime.current = 0;
     startTime.current = 0;
@@ -94,6 +113,31 @@ export default function Home() {
     setCard(nextCards[0]);
   };
 
+  const recordSkillAttempt = (skill: string, wasCorrect: boolean, usedHint: boolean, usedShowMeHow: boolean) => {
+    setSkillStats((previousStats) => {
+      const currentStats = previousStats[skill] ?? {
+        attempts: 0,
+        correct: 0,
+        incorrect: 0,
+        hintUsage: 0,
+        showMeHowUsage: 0,
+      };
+
+      const nextStats: SkillStats = {
+        attempts: currentStats.attempts + 1,
+        correct: currentStats.correct + (wasCorrect ? 1 : 0),
+        incorrect: currentStats.incorrect + (wasCorrect ? 0 : 1),
+        hintUsage: currentStats.hintUsage + (usedHint ? 1 : 0),
+        showMeHowUsage: currentStats.showMeHowUsage + (usedShowMeHow ? 1 : 0),
+      };
+
+      return {
+        ...previousStats,
+        [skill]: nextStats,
+      };
+    });
+  };
+
   const handleButtonClick = async (value: string) => {
     if (value === REFRESH_SYMBOL) {
       refreshSession();
@@ -104,64 +148,122 @@ export default function Home() {
       return;
     }
 
-    if (value === DEL_SYMBOL) {
-      setUserInput((prevInput) => prevInput.slice(0, -1));
+    const cardMetadata = flashcards[index] as typeof flashcards[number] & {
+      hint?: string;
+      explanation?: string;
+      skill?: string;
+    };
+    const skill = cardMetadata.skill ?? "general-practice";
+
+    if (userInput === TICK_MARK) {
       return;
     }
 
-    if (userInput === TICK_MARK || userInput === CROSS_MARK) {
+    if (value === "show-me-how") {
+      setShowMeHow(true);
+      setHelpMessage(cardMetadata.explanation ?? cardMetadata.hint ?? "Try simplifying the expression one step at a time.");
+      recordSkillAttempt(skill, false, true, true);
+      return;
+    }
+
+    setHelpMessage("");
+
+    if (value === "-") {
+      if (userInput.includes("-")) {
+        return;
+      }
+      setUserInput((prevInput) => prevInput === "" ? "-" : prevInput);
+      return;
+    }
+
+    if (value === DEL_SYMBOL) {
+      setUserInput((prevInput) => prevInput === "-" ? "" : prevInput.slice(0, -1));
       return;
     }
 
     const nextInput = userInput + value;
-    setUserInput(nextInput);
     const answer = card.answer();
+    const updatedFlashcards = flashcards.map((currentCard) => currentCard.clone());
+
+    if (isObviousAnswerMistake(answer, nextInput)) {
+      updatedFlashcards[index].status = "fail";
+      setFlashCards(updatedFlashcards);
+      setCard(updatedFlashcards[index]);
+      setUserInput(nextInput);
+      setHelpMessage(getHintMessage(sessionMode, skill, cardMetadata.hint, cardMetadata.explanation, skillStats[skill]));
+      recordSkillAttempt(skill, false, true, false);
+      return;
+    }
+
+    setUserInput(nextInput);
     if (nextInput.length !== answer.length) {
       return;
     }
 
     await new Promise((resolve) => setTimeout(resolve, 300));
     const elapsedTime = Date.now() - startTime.current - 300;
-    const updatedFlashcards = flashcards.map((currentCard) => currentCard.clone());
 
     if (nextInput === answer) {
+      recordSkillAttempt(skill, true, false, false);
       updatedFlashcards[index].status = "pass";
       setUserInput(TICK_MARK);
       setScore((previousScore) => previousScore + 1);
       totalTime.current += elapsedTime;
       count.current += 1;
       setAvgTime(Math.round(totalTime.current / count.current));
+      setShowMeHow(false);
     } else {
+      recordSkillAttempt(skill, false, false, false);
       updatedFlashcards[index].status = "fail";
-      setUserInput(CROSS_MARK);
+      setUserInput(nextInput);
       setScore((previousScore) => previousScore - 1);
       count.current += 1;
+
+      const stats = skillStats[skill] ?? { attempts: 0, correct: 0, incorrect: 0, hintUsage: 0, showMeHowUsage: 0 };
+      setHelpMessage(getHintMessage(sessionMode, skill, cardMetadata.hint, cardMetadata.explanation, stats));
+      setFlashCards(updatedFlashcards);
+      setCard(updatedFlashcards[index]);
+      setShowMeHow(false);
+      return;
     }
 
     await new Promise((resolve) => setTimeout(resolve, 300));
     if (updatedFlashcards.every((currentCard) => currentCard.status === "pass" || currentCard.status === "fail")) {
+      const summaryEntries = Object.entries(skillStats).map(([skill, stats]) => `${skill}: ${getSkillSummary(stats)}`);
+      setSessionSummary(summaryEntries.length > 0 ? summaryEntries : ["general-practice: Practice again"]);
       setSessionStarted(false);
       setSessionFinished(true);
       setUserInput("");
       setFlashCards(updatedFlashcards);
+      setHelpMessage("");
       return;
     }
 
-    let nextIndex = index === updatedFlashcards.length - 1 ? 0 : index + 1;
-    while (updatedFlashcards[nextIndex].status && nextIndex !== index) {
-      nextIndex = nextIndex === updatedFlashcards.length - 1 ? 0 : nextIndex + 1;
+    if (shouldAdvanceAfterAnswer(sessionMode, nextInput === answer)) {
+      let nextIndex = index === updatedFlashcards.length - 1 ? 0 : index + 1;
+      while (updatedFlashcards[nextIndex].status && nextIndex !== index) {
+        nextIndex = nextIndex === updatedFlashcards.length - 1 ? 0 : nextIndex + 1;
+      }
+
+      updatedFlashcards[nextIndex].status = "pending";
+      setFlashCards(updatedFlashcards);
+      setIndex(nextIndex);
+      setCard(updatedFlashcards[nextIndex]);
+      setUserInput("");
+      startTime.current = Date.now();
+      return;
     }
 
-    updatedFlashcards[nextIndex].status = "pending";
+    updatedFlashcards[index].status = "fail";
     setFlashCards(updatedFlashcards);
-    setIndex(nextIndex);
-    setCard(updatedFlashcards[nextIndex]);
     setUserInput("");
+    setCard(updatedFlashcards[index]);
     startTime.current = Date.now();
   };
 
   const handleConceptClick = (nextConceptId: string) => {
     resetSessionState();
+    setSessionMode(getDefaultSessionMode(nextConceptId));
     applyDeck(nextConceptId);
   };
 
@@ -175,8 +277,12 @@ export default function Home() {
     updateSettings(levelSettings);
   };
 
+  const toggleSessionMode = (nextMode: SessionMode) => {
+    setSessionMode(nextMode);
+  };
+
   const handleOrderChange = (order: Order) => {
-    if (activeSettings.kind === "integer" || activeSettings.kind === "multiplication") {
+    if (activeSettings.kind === "integer" || activeSettings.kind === "multiplication" || activeSettings.kind === "pre-algebra") {
       updateSettings({ ...activeSettings, order } as ConceptSettings);
     }
   };
@@ -265,11 +371,17 @@ export default function Home() {
     startTime.current = Date.now();
   };
 
-  const buttons = ["7", "8", "9", "4", "5", "6", "1", "2", "3", ".", "0", DEL_SYMBOL];
+  const buttons = ["7", "8", "9", "4", "5", "6", "1", "2", "3", "-", "0", ".", DEL_SYMBOL];
   const statusIcon = (status: string): string => status === "pass" ? TICK_MARK : status === "fail" ? CROSS_MARK : "-";
   const integerSettings = activeSettings.kind === "integer" ? activeSettings as IntegerSettings : null;
   const multiplicationSettings = activeSettings.kind === "multiplication" ? activeSettings as MultiplicationSettings : null;
   const decimalSettings = activeSettings.kind === "decimal" ? activeSettings as DecimalSettings : null;
+  const preAlgebraSettings = activeSettings.kind === "pre-algebra" ? activeSettings as PreAlgebraSettings : null;
+  const activeCardMetadata = card as typeof card & {
+    hint?: string;
+    explanation?: string;
+    skill?: string;
+  };
 
   return (
     <main className="flex min-h-screen flex-col items-center py-4 px-4 sm:p-6 md:py-10 md:px-8">
@@ -306,10 +418,40 @@ export default function Home() {
           <input type="text" className={`${activeConcept.textColor} text-4xl text-center rounded-lg focus:outline-none`} value={userInput} readOnly />
         </div>
 
+        {helpMessage && (
+          <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+            <p className="font-semibold">{showMeHow ? "Show Me How" : "Hint"}</p>
+            <p>{helpMessage}</p>
+            {!showMeHow && activeCardMetadata.hint && (
+              <button
+                onClick={() => handleButtonClick("show-me-how")}
+                className="mt-3 rounded-md bg-amber-600 px-3 py-2 text-xs font-bold uppercase tracking-wide text-white"
+              >
+                Show Me How
+              </button>
+            )}
+          </div>
+        )}
+
         {!sessionStarted && !sessionFinished && (
           <div className="mt-4 rounded-xl border border-sky-200 bg-sky-50 p-4 text-sky-800">
             <h2 className="text-xl font-bold">Practice setup</h2>
             <p className="mt-2 text-sm">Keep it short and repeatable: up to 10 questions per round.</p>
+
+            <div className="mt-4">
+              <p className="mb-2 font-semibold">Mode</p>
+              <div className="flex flex-wrap gap-2">
+                <button onClick={() => toggleSessionMode("practice")} className={`rounded-full px-3 py-2 text-sm font-semibold ${sessionMode === "practice" ? "bg-emerald-600 text-white" : "bg-white text-emerald-700 ring-1 ring-emerald-300"}`}>
+                  Practice
+                </button>
+                <button onClick={() => toggleSessionMode("mastery")} className={`rounded-full px-3 py-2 text-sm font-semibold ${sessionMode === "mastery" ? "bg-violet-600 text-white" : "bg-white text-violet-700 ring-1 ring-violet-300"}`}>
+                  Mastery
+                </button>
+              </div>
+              <p className="mt-2 text-xs text-sky-700">
+                {sessionMode === "practice" ? "Keep moving and revisit missed questions later." : "Stay on the question until it makes sense."}
+              </p>
+            </div>
 
             <div className="mt-4">
               <p className="mb-2 font-semibold">Levels</p>
@@ -390,7 +532,7 @@ export default function Home() {
               </div>
             )}
 
-            {(integerSettings || multiplicationSettings) && (
+            {(integerSettings || multiplicationSettings || preAlgebraSettings) && (
               <div className="mt-4">
                 <p className="mb-2 font-semibold">Order</p>
                 <div className="flex flex-wrap gap-2">
@@ -411,6 +553,16 @@ export default function Home() {
             <h2 className="text-3xl font-bold text-sky-700">Session Complete!</h2>
             <p className="text-xl mt-2">Final score: {score}</p>
             <p className="text-xl mt-1">Avg time: {averageSeconds}s</p>
+            {sessionSummary.length > 0 && (
+              <div className="mt-4 text-left rounded-lg bg-white p-3 text-sky-800">
+                <p className="font-semibold">Skill summary</p>
+                <ul className="mt-2 list-disc pl-5 text-sm">
+                  {sessionSummary.map((line) => (
+                    <li key={line}>{line}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
             <button onClick={startSession} className="mt-4 px-6 py-3 text-2xl text-white bg-blue-500 hover:bg-blue-600 rounded-lg">Restart</button>
           </div>
         )}
