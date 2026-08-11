@@ -169,6 +169,12 @@ export default function Home() {
     setConceptSettings((previousSettings) => ({ ...previousSettings, [conceptId]: nextSettings }));
   };
 
+  const isSameSettings = (left: ConceptSettings, right: ConceptSettings): boolean => JSON.stringify(left) === JSON.stringify(right);
+
+  const handleLevelChange = (levelSettings: ConceptSettings) => {
+    updateSettings(levelSettings);
+  };
+
   const handleOrderChange = (order: Order) => {
     if (activeSettings.kind === "integer" || activeSettings.kind === "multiplication") {
       updateSettings({ ...activeSettings, order } as ConceptSettings);
@@ -305,6 +311,26 @@ export default function Home() {
             <h2 className="text-xl font-bold">Practice setup</h2>
             <p className="mt-2 text-sm">Keep it short and repeatable: up to 10 questions per round.</p>
 
+            <div className="mt-4">
+              <p className="mb-2 font-semibold">Levels</p>
+              <div className="space-y-2">
+                {activeConcept.levels.map((level, levelIndex) => {
+                  const chosen = isSameSettings(level.settings, activeSettings);
+
+                  return (
+                    <button
+                      key={level.id}
+                      onClick={() => handleLevelChange(level.settings)}
+                      className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm font-semibold ${chosen ? "bg-sky-600 text-white" : "bg-white text-sky-700 ring-1 ring-sky-300"}`}
+                    >
+                      <span>{level.label}</span>
+                      <span className="ml-4 text-xs font-bold">Level {levelIndex + 1}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             {integerSettings && (
               <div className="mt-4">
                 <p className="mb-2 font-semibold">Numbers</p>
@@ -355,10 +381,10 @@ export default function Home() {
                   <button onClick={() => handleDecimalPrecisionChange("advanced")} className={`rounded-full px-3 py-2 text-sm font-semibold ${decimalSettings.precision === "advanced" ? "bg-emerald-600 text-white" : "bg-white text-emerald-700 ring-1 ring-emerald-300"}`}>Advanced</button>
                 </div>
                 <div className="mt-4">
-                  <p className="mb-2 font-semibold">Carry</p>
+                  <p className="mb-2 font-semibold">Regrouping</p>
                   <div className="flex flex-wrap gap-2">
-                    <button onClick={() => handleDecimalCarryChange("no-carry")} className={`rounded-full px-3 py-2 text-sm font-semibold ${decimalSettings.carry === "no-carry" ? "bg-emerald-600 text-white" : "bg-white text-emerald-700 ring-1 ring-emerald-300"}`}>No carry</button>
-                    <button onClick={() => handleDecimalCarryChange("carry")} className={`rounded-full px-3 py-2 text-sm font-semibold ${decimalSettings.carry === "carry" ? "bg-emerald-600 text-white" : "bg-white text-emerald-700 ring-1 ring-emerald-300"}`}>Carry</button>
+                    <button onClick={() => handleDecimalCarryChange("no-carry")} className={`rounded-full px-3 py-2 text-sm font-semibold ${decimalSettings.carry === "no-carry" ? "bg-emerald-600 text-white" : "bg-white text-emerald-700 ring-1 ring-emerald-300"}`}>No regrouping</button>
+                    <button onClick={() => handleDecimalCarryChange("carry")} className={`rounded-full px-3 py-2 text-sm font-semibold ${decimalSettings.carry === "carry" ? "bg-emerald-600 text-white" : "bg-white text-emerald-700 ring-1 ring-emerald-300"}`}>Regrouping</button>
                   </div>
                 </div>
               </div>

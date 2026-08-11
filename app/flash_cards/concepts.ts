@@ -34,12 +34,19 @@ export interface DecimalSettings {
 
 export type ConceptSettings = MultiplicationSettings | IntegerSettings | DecimalSettings;
 
+export interface PracticeLevel {
+    id: string;
+    label: string;
+    settings: ConceptSettings;
+}
+
 export interface Concept {
     id: string;
     label: string;
     textColor: string;
     getDefaultSettings(): ConceptSettings;
     buildFlashcards(settings: ConceptSettings): ICard[];
+    levels: PracticeLevel[];
 }
 
 const shuffle = (cards: ICard[], order: Order): ICard[] => {
@@ -143,10 +150,52 @@ export const concepts: Concept[] = [
         getDefaultSettings: () => ({
             kind: "integer",
             selectedFactors: [...FACTOR_OPTIONS],
-            mode: "both",
-            order: "random",
+            mode: "addition",
+            order: "in-order",
         }),
         buildFlashcards: (settings) => buildIntegerCards(settings as IntegerSettings),
+        levels: [
+            {
+                id: "add-in-order",
+                label: "Level 1 • Add • In order",
+                settings: {
+                    kind: "integer",
+                    selectedFactors: [...FACTOR_OPTIONS],
+                    mode: "addition",
+                    order: "in-order",
+                },
+            },
+            {
+                id: "add-random",
+                label: "Level 2 • Add • Random",
+                settings: {
+                    kind: "integer",
+                    selectedFactors: [...FACTOR_OPTIONS],
+                    mode: "addition",
+                    order: "random",
+                },
+            },
+            {
+                id: "add-subtract-in-order",
+                label: "Level 3 • Add + Subtract • In order",
+                settings: {
+                    kind: "integer",
+                    selectedFactors: [...FACTOR_OPTIONS],
+                    mode: "both",
+                    order: "in-order",
+                },
+            },
+            {
+                id: "add-subtract-random",
+                label: "Level 4 • Add + Subtract • Random",
+                settings: {
+                    kind: "integer",
+                    selectedFactors: [...FACTOR_OPTIONS],
+                    mode: "both",
+                    order: "random",
+                },
+            },
+        ],
     },
     {
         id: "multiplication-division",
@@ -155,10 +204,52 @@ export const concepts: Concept[] = [
         getDefaultSettings: () => ({
             kind: "multiplication",
             selectedFactors: [...FACTOR_OPTIONS],
-            mode: "both",
-            order: "random",
+            mode: "multiplication",
+            order: "in-order",
         }),
         buildFlashcards: (settings) => buildMultiplicationCards(settings as MultiplicationSettings),
+        levels: [
+            {
+                id: "multiply-in-order",
+                label: "Level 1 • Multiply • In order",
+                settings: {
+                    kind: "multiplication",
+                    selectedFactors: [...FACTOR_OPTIONS],
+                    mode: "multiplication",
+                    order: "in-order",
+                },
+            },
+            {
+                id: "multiply-random",
+                label: "Level 2 • Multiply • Random",
+                settings: {
+                    kind: "multiplication",
+                    selectedFactors: [...FACTOR_OPTIONS],
+                    mode: "multiplication",
+                    order: "random",
+                },
+            },
+            {
+                id: "multiply-divide-in-order",
+                label: "Level 3 • Multiply + Divide • In order",
+                settings: {
+                    kind: "multiplication",
+                    selectedFactors: [...FACTOR_OPTIONS],
+                    mode: "both",
+                    order: "in-order",
+                },
+            },
+            {
+                id: "multiply-divide-random",
+                label: "Level 4 • Multiply + Divide • Random",
+                settings: {
+                    kind: "multiplication",
+                    selectedFactors: [...FACTOR_OPTIONS],
+                    mode: "both",
+                    order: "random",
+                },
+            },
+        ],
     },
     {
         id: "decimals",
@@ -171,6 +262,48 @@ export const concepts: Concept[] = [
             order: "random",
         }),
         buildFlashcards: (settings) => buildDecimalCards(settings as DecimalSettings),
+        levels: [
+            {
+                id: "decimal-simple-no-regroup",
+                label: "Level 1 • Simple • No regrouping",
+                settings: {
+                    kind: "decimal",
+                    carry: "no-carry",
+                    precision: "simple",
+                    order: "random",
+                },
+            },
+            {
+                id: "decimal-simple-regroup",
+                label: "Level 2 • Simple • Regrouping",
+                settings: {
+                    kind: "decimal",
+                    carry: "carry",
+                    precision: "simple",
+                    order: "random",
+                },
+            },
+            {
+                id: "decimal-advanced-no-regroup",
+                label: "Level 3 • Advanced • No regrouping",
+                settings: {
+                    kind: "decimal",
+                    carry: "no-carry",
+                    precision: "advanced",
+                    order: "random",
+                },
+            },
+            {
+                id: "decimal-advanced-regroup",
+                label: "Level 4 • Advanced • Regrouping",
+                settings: {
+                    kind: "decimal",
+                    carry: "carry",
+                    precision: "advanced",
+                    order: "random",
+                },
+            },
+        ],
     },
 ];
 
