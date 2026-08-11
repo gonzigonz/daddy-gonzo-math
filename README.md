@@ -1,5 +1,21 @@
 # Daddy Gonzo Math
-This is a simple maths app designed for Elementary school kids. It was inspired from helping my daughters Bailey and Indiana with their 4th and 2nd grade homework.
+This is a simple maths app designed for elementary school kids. Practice is organized by math concepts rather than individual users, so the same tabs can support everyone using the app.
+
+The current tabs are:
+
+- Add & Subtract
+- Multiply & Divide
+- Decimals, including no-carry and carry addition
+
+Practice state is intentionally ephemeral. Scores, average time, settings, and cards live only in the current browser session and reset on a fresh load.
+
+## Adding a concept
+
+Concept tabs are maintained in [`app/flash_cards/concepts.ts`](app/flash_cards/concepts.ts). To add, remove, or reorder a tab, update the `concepts` registry and provide its default settings and card generator. New card types belong in [`app/flash_cards/card.tsx`](app/flash_cards/card.tsx) and should implement the shared `ICard` contract, including `clone()`.
+
+## Roadmap
+
+Future concepts may include powers, square roots, fractions, and classifying numbers as integers, rational numbers, or irrational numbers. These should follow the same registry and card patterns without introducing persistent state until there is a clear need for it.
 
 # Development
 This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
