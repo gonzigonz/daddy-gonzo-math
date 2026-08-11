@@ -48,6 +48,8 @@ export default function Home() {
   const [sessionStarted, setSessionStarted] = useState(false);
   const [sessionFinished, setSessionFinished] = useState(false);
   const [conceptSettings, setConceptSettings] = useState<SettingsByConcept>(initialSettings);
+  const [helpMessage, setHelpMessage] = useState<string>("");
+  const [sessionSummary, setSessionSummary] = useState<string[]>([]);
 
   const startTime = useRef<number>(0);
   const totalTime = useRef<number>(0);
@@ -61,6 +63,8 @@ export default function Home() {
     setScore(0);
     setAvgTime(0);
     setUserInput("");
+    setHelpMessage("");
+    setSessionSummary([]);
     count.current = 0;
     totalTime.current = 0;
     startTime.current = 0;
@@ -105,6 +109,8 @@ export default function Home() {
       return;
     }
 
+    setHelpMessage("");
+
     if (value === "-") {
       if (userInput.includes("-")) {
         return;
@@ -145,14 +151,29 @@ export default function Home() {
       setUserInput(CROSS_MARK);
       setScore((previousScore) => previousScore - 1);
       count.current += 1;
+
+      const cardMetadata = updatedFlashcards[index] as typeof updatedFlashcards[number] & {
+        hint?: string;
+        explanation?: string;
+        skill?: string;
+      };
+      setHelpMessage(cardMetadata.hint ?? "Try simplifying the expression one step at a time.");
     }
 
     await new Promise((resolve) => setTimeout(resolve, 300));
     if (updatedFlashcards.every((currentCard) => currentCard.status === "pass" || currentCard.status === "fail")) {
+      const skills = updatedFlashcards.reduce<Record<string, number>>((summary, currentCard) => {
+        const cardMetadata = currentCard as typeof currentCard & { skill?: string };
+        const skill = cardMetadata.skill ?? "general-practice";
+        summary[skill] = (summary[skill] ?? 0) + 1;
+        return summary;
+      }, {});
+      setSessionSummary(Object.entries(skills).map(([skill, count]) => `${skill}: ${count > 0 ? "Strong" : "Practice again"}`));
       setSessionStarted(false);
       setSessionFinished(true);
       setUserInput("");
       setFlashCards(updatedFlashcards);
+      setHelpMessage("");
       return;
     }
 
@@ -316,6 +337,13 @@ export default function Home() {
           <input type="text" className={`${activeConcept.textColor} text-4xl text-center rounded-lg focus:outline-none`} value={userInput} readOnly />
         </div>
 
+        {helpMessage && (
+          <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+            <p className="font-semibold">Hint</p>
+            <p>{helpMessage}</p>
+          </div>
+        )}
+
         {!sessionStarted && !sessionFinished && (
           <div className="mt-4 rounded-xl border border-sky-200 bg-sky-50 p-4 text-sky-800">
             <h2 className="text-xl font-bold">Practice setup</h2>
@@ -421,6 +449,16 @@ export default function Home() {
             <h2 className="text-3xl font-bold text-sky-700">Session Complete!</h2>
             <p className="text-xl mt-2">Final score: {score}</p>
             <p className="text-xl mt-1">Avg time: {averageSeconds}s</p>
+            {sessionSummary.length > 0 && (
+              <div className="mt-4 text-left rounded-lg bg-white p-3 text-sky-800">
+                <p className="font-semibold">Skill summary</p>
+                <ul className="mt-2 list-disc pl-5 text-sm">
+                  {sessionSummary.map((line) => (
+                    <li key={line}>{line}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
             <button onClick={startSession} className="mt-4 px-6 py-3 text-2xl text-white bg-blue-500 hover:bg-blue-600 rounded-lg">Restart</button>
           </div>
         )}

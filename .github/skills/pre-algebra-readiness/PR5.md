@@ -90,6 +90,66 @@ Reuse the app's existing wording/components if they differ.
     unambiguously wrong.
 -   Preserve existing answer-entry and feedback behavior.
 
+## Help, feedback, and remediation
+
+Pre-Algebra introduces concepts where a wrong answer may indicate a
+misunderstanding rather than a missing memorized fact. Add a lightweight,
+reusable help flow without turning the app into a lesson platform.
+
+### Attempt flow
+
+1.  **First attempt --- no help**
+    -   Present the question normally.
+    -   Correct answer: continue immediately using the existing app
+        flow.
+    -   Incorrect answer: do not reveal the answer immediately. Offer a
+        **Hint**.
+2.  **Hint**
+    -   Give one short conceptual cue that helps the learner decide what
+        to do next.
+    -   Do not reveal the final answer.
+    -   Allow another attempt.
+3.  **Show Me How**
+    -   If the learner is still stuck, offer **Show Me How**.
+    -   Display a compact worked solution using only the steps needed
+        for that question.
+    -   Explanations should be brief and readable without leaving the app.
+4.  **Try Similar**
+    -   After **Show Me How**, schedule another question from the same
+        skill / questionFamily soon in the session when practical.
+
+### Repeated difficulty
+
+Track repeated difficulty at the skill level within the session. A learner
+needing help on one question is normal and should not trigger escalation.
+If the learner repeatedly requires help, display a calm message such as:
+
+> This one might need some teaching first. Check your class notes or ask
+> your teacher or a parent about **[skill name]**. You can come back and
+> practice afterward.
+
+### Question data model
+
+Where compatible with the existing architecture, questions on concept-oriented
+cards should support metadata such as:
+
+-   `answer`
+-   `skill`
+-   `questionFamily`
+-   `hint`
+-   `explanation`
+
+### End-of-session skill summary
+
+For concept-oriented cards, augment the normal score with a compact skill
+summary.
+
+Example:
+
+-   `8 / 10 correct`
+-   `✓ Signed numbers — strong`
+-   `△ Algebra vocabulary — practice again`
+
 ## Explicitly out of scope
 
 Do not add formal number-system hierarchy drills, rational/irrational

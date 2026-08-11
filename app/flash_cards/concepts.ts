@@ -157,27 +157,36 @@ const buildDecimalCards = (settings: DecimalSettings): ICard[] => {
 };
 
 const buildPreAlgebraPromptDeck = (
-    prompts: Array<{ prompt: string; answer: number }>,
+    prompts: Array<{
+        prompt: string;
+        answer: number;
+        skill?: string;
+        questionFamily?: string;
+        hint?: string;
+        explanation?: string;
+    }>,
     order: Order,
 ): ICard[] => {
-    const cards = prompts.map(({ prompt, answer }) => new PreAlgebraCard(prompt, answer));
+    const cards = prompts.map(({ prompt, answer, skill, questionFamily, hint, explanation }) =>
+        new PreAlgebraCard(prompt, answer, { skill, questionFamily, hint, explanation }),
+    );
     return limitDeck(shuffle(cards, order));
 };
 
 const buildSignedNumberCards = (order: Order): ICard[] => {
     const prompts = [
-        { prompt: "|-7|", answer: 7 },
-        { prompt: "-4 + 9", answer: 5 },
-        { prompt: "-3 - 8", answer: -11 },
-        { prompt: "5 + (-2)", answer: 3 },
-        { prompt: "-6 + (-4)", answer: -10 },
-        { prompt: "9 - (-2)", answer: 11 },
-        { prompt: "-7 + 4", answer: -3 },
-        { prompt: "|-8| + 2", answer: 10 },
-        { prompt: "-5 + 2", answer: -3 },
-        { prompt: "-9 + 9", answer: 0 },
-        { prompt: "3 + (-8)", answer: -5 },
-        { prompt: "-1 - (-6)", answer: 5 },
+        { prompt: "|-7|", answer: 7, skill: "signed-numbers", questionFamily: "absolute-value", hint: "Absolute value is the distance from zero.", explanation: "|-7| = 7 because distance from 0 is 7." },
+        { prompt: "-4 + 9", answer: 5, skill: "signed-numbers", questionFamily: "addition", hint: "Start at -4 and move 9 places to the right.", explanation: "-4 + 9 = 5 because 9 - 4 = 5." },
+        { prompt: "-3 - 8", answer: -11, skill: "signed-numbers", questionFamily: "subtraction", hint: "Subtracting a positive means moving further left on the number line.", explanation: "-3 - 8 = -11 because -3 + (-8) = -11." },
+        { prompt: "5 + (-2)", answer: 3, skill: "signed-numbers", questionFamily: "addition", hint: "Adding a negative is like subtracting.", explanation: "5 + (-2) = 5 - 2 = 3." },
+        { prompt: "-6 + (-4)", answer: -10, skill: "signed-numbers", questionFamily: "addition", hint: "Add the two negatives together.", explanation: "-6 + (-4) = -10." },
+        { prompt: "9 - (-2)", answer: 11, skill: "signed-numbers", questionFamily: "subtraction", hint: "Subtracting a negative is the same as adding a positive.", explanation: "9 - (-2) = 9 + 2 = 11." },
+        { prompt: "-7 + 4", answer: -3, skill: "signed-numbers", questionFamily: "addition", hint: "Use the bigger absolute value to decide the sign.", explanation: "-7 + 4 = -3 because 7 - 4 = 3 and -7 is larger in size." },
+        { prompt: "|-8| + 2", answer: 10, skill: "signed-numbers", questionFamily: "absolute-value", hint: "Find the absolute value before adding.", explanation: "|-8| = 8, so 8 + 2 = 10." },
+        { prompt: "-5 + 2", answer: -3, skill: "signed-numbers", questionFamily: "addition", hint: "The negative number has the larger size, so the answer stays negative.", explanation: "-5 + 2 = -3 because 5 - 2 = 3 and -5 is larger." },
+        { prompt: "-9 + 9", answer: 0, skill: "signed-numbers", questionFamily: "addition", hint: "Opposites add to zero.", explanation: "-9 + 9 = 0." },
+        { prompt: "3 + (-8)", answer: -5, skill: "signed-numbers", questionFamily: "addition", hint: "Add the negative value as subtraction.", explanation: "3 + (-8) = 3 - 8 = -5." },
+        { prompt: "-1 - (-6)", answer: 5, skill: "signed-numbers", questionFamily: "subtraction", hint: "Subtracting a negative means add the positive.", explanation: "-1 - (-6) = -1 + 6 = 5." },
     ];
 
     return buildPreAlgebraPromptDeck(prompts, order);
@@ -185,16 +194,16 @@ const buildSignedNumberCards = (order: Order): ICard[] => {
 
 const buildAlgebraLanguageCards = (order: Order): ICard[] => {
     const prompts = [
-        { prompt: "If x = 3, then 2x + 1", answer: 7 },
-        { prompt: "If x = 4, then 5x - 2", answer: 18 },
-        { prompt: "If x = -2, then 3x + 5", answer: -1 },
-        { prompt: "If x = 6, then x / 2 + 4", answer: 7 },
-        { prompt: "If x = 5, then 4x", answer: 20 },
-        { prompt: "If x = -3, then 2x + 9", answer: 3 },
-        { prompt: "If x = 7, then x + 3", answer: 10 },
-        { prompt: "If x = 2, then 6x - 4", answer: 8 },
-        { prompt: "If x = 10, then x / 5", answer: 2 },
-        { prompt: "If x = -4, then x + 11", answer: 7 },
+        { prompt: "If x = 3, then 2x + 1", answer: 7, skill: "algebra-language", questionFamily: "substitution", hint: "Replace x with 3, then do the multiplication before adding.", explanation: "2(3) + 1 = 6 + 1 = 7." },
+        { prompt: "If x = 4, then 5x - 2", answer: 18, skill: "algebra-language", questionFamily: "substitution", hint: "Multiply before subtracting.", explanation: "5(4) - 2 = 20 - 2 = 18." },
+        { prompt: "If x = -2, then 3x + 5", answer: -1, skill: "algebra-language", questionFamily: "substitution", hint: "Multiply by a negative number first.", explanation: "3(-2) + 5 = -6 + 5 = -1." },
+        { prompt: "If x = 6, then x / 2 + 4", answer: 7, skill: "algebra-language", questionFamily: "substitution", hint: "Divide first, then add.", explanation: "6 / 2 + 4 = 3 + 4 = 7." },
+        { prompt: "If x = 5, then 4x", answer: 20, skill: "algebra-language", questionFamily: "implicit-multiplication", hint: "4x means 4 times x.", explanation: "4(5) = 20." },
+        { prompt: "If x = -3, then 2x + 9", answer: 3, skill: "algebra-language", questionFamily: "substitution", hint: "A negative times a positive stays negative.", explanation: "2(-3) + 9 = -6 + 9 = 3." },
+        { prompt: "If x = 7, then x + 3", answer: 10, skill: "algebra-language", questionFamily: "substitution", hint: "Substitute the value for x and add.", explanation: "7 + 3 = 10." },
+        { prompt: "If x = 2, then 6x - 4", answer: 8, skill: "algebra-language", questionFamily: "substitution", hint: "First multiply, then subtract.", explanation: "6(2) - 4 = 12 - 4 = 8." },
+        { prompt: "If x = 10, then x / 5", answer: 2, skill: "algebra-language", questionFamily: "division", hint: "Divide the value of x by 5.", explanation: "10 / 5 = 2." },
+        { prompt: "If x = -4, then x + 11", answer: 7, skill: "algebra-language", questionFamily: "substitution", hint: "Add a positive to a negative.", explanation: "-4 + 11 = 7." },
     ];
 
     return buildPreAlgebraPromptDeck(prompts, order);
@@ -202,18 +211,18 @@ const buildAlgebraLanguageCards = (order: Order): ICard[] => {
 
 const buildArithmeticRelationshipCards = (order: Order): ICard[] => {
     const prompts = [
-        { prompt: "? + 7 = 12", answer: 5 },
-        { prompt: "6 × ? = 42", answer: 7 },
-        { prompt: "? ÷ 4 = 5", answer: 20 },
-        { prompt: "18 - ? = 11", answer: 7 },
-        { prompt: "? + 9 = 3", answer: -6 },
-        { prompt: "? - 5 = 13", answer: 18 },
-        { prompt: "9 × ? = 27", answer: 3 },
-        { prompt: "? / 3 = 6", answer: 18 },
-        { prompt: "? + 11 = 4", answer: -7 },
-        { prompt: "7 × ? = 49", answer: 7 },
-        { prompt: "? ÷ 2 = 9", answer: 18 },
-        { prompt: "15 - ? = 8", answer: 7 },
+        { prompt: "? + 7 = 12", answer: 5, skill: "arithmetic-relationships", questionFamily: "missing-addend", hint: "Undo the +7 by subtracting 7.", explanation: "12 - 7 = 5." },
+        { prompt: "6 × ? = 42", answer: 7, skill: "arithmetic-relationships", questionFamily: "missing-factor", hint: "Think: 42 divided by 6.", explanation: "42 ÷ 6 = 7." },
+        { prompt: "? ÷ 4 = 5", answer: 20, skill: "arithmetic-relationships", questionFamily: "missing-dividend", hint: "Undo division by multiplying 5 × 4.", explanation: "5 × 4 = 20." },
+        { prompt: "18 - ? = 11", answer: 7, skill: "arithmetic-relationships", questionFamily: "missing-subtrahend", hint: "Work backward: 18 - 11 = ?", explanation: "18 - 11 = 7." },
+        { prompt: "? + 9 = 3", answer: -6, skill: "arithmetic-relationships", questionFamily: "missing-addend", hint: "Think: what number plus 9 equals 3?", explanation: "3 - 9 = -6." },
+        { prompt: "? - 5 = 13", answer: 18, skill: "arithmetic-relationships", questionFamily: "missing-minuend", hint: "Undo subtraction by adding 5 to 13.", explanation: "13 + 5 = 18." },
+        { prompt: "9 × ? = 27", answer: 3, skill: "arithmetic-relationships", questionFamily: "missing-factor", hint: "Divide 27 by 9.", explanation: "27 ÷ 9 = 3." },
+        { prompt: "? / 3 = 6", answer: 18, skill: "arithmetic-relationships", questionFamily: "missing-dividend", hint: "Undo division by multiplying 6 × 3.", explanation: "6 × 3 = 18." },
+        { prompt: "? + 11 = 4", answer: -7, skill: "arithmetic-relationships", questionFamily: "missing-addend", hint: "Subtract 11 from 4.", explanation: "4 - 11 = -7." },
+        { prompt: "7 × ? = 49", answer: 7, skill: "arithmetic-relationships", questionFamily: "missing-factor", hint: "49 divided by 7 gives the missing number.", explanation: "49 ÷ 7 = 7." },
+        { prompt: "? ÷ 2 = 9", answer: 18, skill: "arithmetic-relationships", questionFamily: "missing-dividend", hint: "Undo the division with multiplication.", explanation: "9 × 2 = 18." },
+        { prompt: "15 - ? = 8", answer: 7, skill: "arithmetic-relationships", questionFamily: "missing-subtrahend", hint: "15 minus 8 equals the missing number.", explanation: "15 - 8 = 7." },
     ];
 
     return buildPreAlgebraPromptDeck(prompts, order);
@@ -221,18 +230,18 @@ const buildArithmeticRelationshipCards = (order: Order): ICard[] => {
 
 const buildEquivalentExpressionCards = (order: Order): ICard[] => {
     const prompts = [
-        { prompt: "3(x + 2) = 3x + ?", answer: 6 },
-        { prompt: "2x + 3x = ? if x = 1", answer: 5 },
-        { prompt: "5(2 + 3) = ?", answer: 25 },
-        { prompt: "4 + x + 3 = ? if x = 5", answer: 12 },
-        { prompt: "3(x + 1) = ? if x = 2", answer: 9 },
-        { prompt: "2(x + 4) = ? if x = 3", answer: 14 },
-        { prompt: "7 + (x + 2) = ? if x = 5", answer: 14 },
-        { prompt: "5x - 2x = ? if x = 6", answer: 18 },
-        { prompt: "x + 4 + 3 = ? if x = 2", answer: 9 },
-        { prompt: "2(y + 5) = ? if y = 3", answer: 16 },
-        { prompt: "4x + 2x = ? if x = 6", answer: 36 },
-        { prompt: "6 + 2 + x = ? if x = 7", answer: 15 },
+        { prompt: "3(x + 2) = 3x + ?", answer: 6, skill: "equivalent-expressions", questionFamily: "distributive-property", hint: "Distribute the 3 across both terms inside the parentheses.", explanation: "3(x + 2) = 3x + 6." },
+        { prompt: "2x + 3x = ? if x = 1", answer: 5, skill: "equivalent-expressions", questionFamily: "combine-like-terms", hint: "Add the coefficients together.", explanation: "2x + 3x = 5x, so with x = 1 the value is 5." },
+        { prompt: "5(2 + 3) = ?", answer: 25, skill: "equivalent-expressions", questionFamily: "grouping", hint: "Add inside the parentheses first.", explanation: "5(2 + 3) = 5(5) = 25." },
+        { prompt: "4 + x + 3 = ? if x = 5", answer: 12, skill: "equivalent-expressions", questionFamily: "combine-like-terms", hint: "Add the numbers and then substitute x.", explanation: "4 + 5 + 3 = 12." },
+        { prompt: "3(x + 1) = ? if x = 2", answer: 9, skill: "equivalent-expressions", questionFamily: "distributive-property", hint: "Substitute x first or distribute first; both work.", explanation: "3(2 + 1) = 3(3) = 9." },
+        { prompt: "2(x + 4) = ? if x = 3", answer: 14, skill: "equivalent-expressions", questionFamily: "distributive-property", hint: "2 times x plus 2 times 4.", explanation: "2(3 + 4) = 2(7) = 14." },
+        { prompt: "7 + (x + 2) = ? if x = 5", answer: 14, skill: "equivalent-expressions", questionFamily: "combine-like-terms", hint: "Add the constants and then the value of x.", explanation: "7 + (5 + 2) = 14." },
+        { prompt: "5x - 2x = ? if x = 6", answer: 18, skill: "equivalent-expressions", questionFamily: "combine-like-terms", hint: "Combine like terms first: 5x - 2x = 3x.", explanation: "5(6) - 2(6) = 30 - 12 = 18." },
+        { prompt: "x + 4 + 3 = ? if x = 2", answer: 9, skill: "equivalent-expressions", questionFamily: "combine-like-terms", hint: "Add the numbers and then add x.", explanation: "2 + 4 + 3 = 9." },
+        { prompt: "2(y + 5) = ? if y = 3", answer: 16, skill: "equivalent-expressions", questionFamily: "distributive-property", hint: "Multiply both parts inside the parentheses by 2.", explanation: "2(3 + 5) = 2(8) = 16." },
+        { prompt: "4x + 2x = ? if x = 6", answer: 36, skill: "equivalent-expressions", questionFamily: "combine-like-terms", hint: "Add the coefficients before substituting x.", explanation: "4x + 2x = 6x = 6(6) = 36." },
+        { prompt: "6 + 2 + x = ? if x = 7", answer: 15, skill: "equivalent-expressions", questionFamily: "combine-like-terms", hint: "Add the constant numbers first, then add x.", explanation: "6 + 2 + 7 = 15." },
     ];
 
     return buildPreAlgebraPromptDeck(prompts, order);
