@@ -8,6 +8,34 @@
         "/^git check-ignore -v \\.vscode/settings\\.json \\|\\| echo 'not ignored' && git status --short$/": {
             "approve": true,
             "matchCommandLine": true
+        },
+        "/^node --version && npm --version$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "/^npm audit --audit-level=high$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "/^npm audit fix --dry-run$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "/^npm audit fix$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "/^git status --short --branch && git log --oneline --decorate -5 && git remote -v$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "/^git switch -c chore/workspace-housekeeping && git add README\\.md package\\.json package-lock\\.json \\.nvmrc \\.github/workflows/quality\\.yml \\.github/skills/workspace-housekeeping/SKILL\\.md && git commit -m \"Add workspace housekeeping workflow\"$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "/^git add \\.vscode/settings\\.json && git commit -m \"Resolve settings conflict with main\" && git stash pop$/": {
+            "approve": true,
+            "matchCommandLine": true
         }
     }
 }

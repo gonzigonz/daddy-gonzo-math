@@ -6,6 +6,20 @@ This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next
 
 ## Getting Started
 
+Use Node.js 20 for local development. The required version is recorded in [.nvmrc](.nvmrc).
+
+Install dependencies and run the baseline checks with npm:
+
+```bash
+npm ci
+npm run lint
+npm run typecheck
+npm run build
+npm audit --audit-level=high
+```
+
+The CI audit step reports high-severity findings without blocking this baseline while the required Next.js major-version migration is planned separately. Linting, typechecking, and production builds remain required checks.
+
 First, run the development server:
 
 ```bash
@@ -37,3 +51,5 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 This app is currently hosted using Github Pages at https://gonzigonz.github.io/daddy-gonzo-math/
 
 It is deployed via a [Github Action](./.github/workflows/nextjs.yml) upon changes to the `main` git branch.
+
+Maintenance changes should be made on a branch and submitted through a pull request. Use the workspace housekeeping skill for the recurring checks and workflow.
