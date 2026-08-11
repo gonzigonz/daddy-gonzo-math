@@ -12,7 +12,15 @@ import {
   Order,
   PreAlgebraSettings,
 } from "./flash_cards/concepts"
-import { SessionMode, getDefaultSessionMode, getHintMessage, isObviousAnswerMistake, shouldAdvanceAfterAnswer } from "./flash_cards/session-flow"
+import {
+  SessionMode,
+  SkillStats,
+  getDefaultSessionMode,
+  getHintMessage,
+  getSkillSummary,
+  isObviousAnswerMistake,
+  shouldAdvanceAfterAnswer,
+} from "./flash_cards/session-flow"
 
 const TICK_MARK = "✓";
 const CROSS_MARK = "✗";
@@ -52,6 +60,8 @@ export default function Home() {
   const [helpMessage, setHelpMessage] = useState<string>("");
   const [sessionSummary, setSessionSummary] = useState<string[]>([]);
   const [sessionMode, setSessionMode] = useState<SessionMode>(getDefaultSessionMode(defaultConceptId));
+  const [skillStats, setSkillStats] = useState<Record<string, SkillStats>>({});
+  const [showMeHow, setShowMeHow] = useState(false);
 
   const startTime = useRef<number>(0);
   const totalTime = useRef<number>(0);
@@ -67,6 +77,8 @@ export default function Home() {
     setUserInput("");
     setHelpMessage("");
     setSessionSummary([]);
+    setSkillStats({});
+    setShowMeHow(false);
     count.current = 0;
     totalTime.current = 0;
     startTime.current = 0;
@@ -101,6 +113,31 @@ export default function Home() {
     setCard(nextCards[0]);
   };
 
+  const recordSkillAttempt = (skill: string, wasCorrect: boolean, usedHint: boolean, usedShowMeHow: boolean) => {
+    setSkillStats((previousStats) => {
+      const currentStats = previousStats[skill] ?? {
+        attempts: 0,
+        correct: 0,
+        incorrect: 0,
+        hintUsage: 0,
+        showMeHowUsage: 0,
+      };
+
+      const nextStats: SkillStats = {
+        attempts: currentStats.attempts + 1,
+        correct: currentStats.correct + (wasCorrect ? 1 : 0),
+        incorrect: currentStats.incorrect + (wasCorrect ? 0 : 1),
+        hintUsage: currentStats.hintUsage + (usedHint ? 1 : 0),
+        showMeHowUsage: currentStats.showMeHowUsage + (usedShowMeHow ? 1 : 0),
+      };
+
+      return {
+        ...previousStats,
+        [skill]: nextStats,
+      };
+    });
+  };
+
   const handleButtonClick = async (value: string) => {
     if (value === REFRESH_SYMBOL) {
       refreshSession();
@@ -111,13 +148,25 @@ export default function Home() {
       return;
     }
 
-    setHelpMessage("");
-
     const cardMetadata = flashcards[index] as typeof flashcards[number] & {
       hint?: string;
       explanation?: string;
       skill?: string;
     };
+    const skill = cardMetadata.skill ?? "general-practice";
+
+    if (userInput === TICK_MARK) {
+      return;
+    }
+
+    if (value === "show-me-how") {
+      setShowMeHow(true);
+      setHelpMessage(cardMetadata.explanation ?? cardMetadata.hint ?? "Try simplifying the expression one step at a time.");
+      recordSkillAttempt(skill, false, true, true);
+      return;
+    }
+
+    setHelpMessage("");
 
     if (value === "-") {
       if (userInput.includes("-")) {
@@ -132,26 +181,17 @@ export default function Home() {
       return;
     }
 
-    if (userInput === TICK_MARK) {
-      return;
-    }
-
-    if (userInput === CROSS_MARK) {
-      setUserInput("");
-      return;
-    }
-
     const nextInput = userInput + value;
     const answer = card.answer();
+    const updatedFlashcards = flashcards.map((currentCard) => currentCard.clone());
 
     if (isObviousAnswerMistake(answer, nextInput)) {
+      updatedFlashcards[index].status = "fail";
+      setFlashCards(updatedFlashcards);
+      setCard(updatedFlashcards[index]);
       setUserInput(nextInput);
-      const cardMetadata = flashcards[index] as typeof flashcards[number] & {
-        hint?: string;
-        explanation?: string;
-        skill?: string;
-      };
-      setHelpMessage(getHintMessage(sessionMode, cardMetadata.skill, cardMetadata.hint, cardMetadata.explanation));
+      setHelpMessage(getHintMessage(sessionMode, skill, cardMetadata.hint, cardMetadata.explanation, skillStats[skill]));
+      recordSkillAttempt(skill, false, true, false);
       return;
     }
 
@@ -162,36 +202,35 @@ export default function Home() {
 
     await new Promise((resolve) => setTimeout(resolve, 300));
     const elapsedTime = Date.now() - startTime.current - 300;
-    const updatedFlashcards = flashcards.map((currentCard) => currentCard.clone());
 
     if (nextInput === answer) {
+      recordSkillAttempt(skill, true, false, false);
       updatedFlashcards[index].status = "pass";
       setUserInput(TICK_MARK);
       setScore((previousScore) => previousScore + 1);
       totalTime.current += elapsedTime;
       count.current += 1;
       setAvgTime(Math.round(totalTime.current / count.current));
+      setShowMeHow(false);
     } else {
+      recordSkillAttempt(skill, false, false, false);
       updatedFlashcards[index].status = "fail";
-      setUserInput(CROSS_MARK);
+      setUserInput(nextInput);
       setScore((previousScore) => previousScore - 1);
       count.current += 1;
 
-      setHelpMessage(getHintMessage(sessionMode, cardMetadata.skill, cardMetadata.hint, cardMetadata.explanation));
+      const stats = skillStats[skill] ?? { attempts: 0, correct: 0, incorrect: 0, hintUsage: 0, showMeHowUsage: 0 };
+      setHelpMessage(getHintMessage(sessionMode, skill, cardMetadata.hint, cardMetadata.explanation, stats));
       setFlashCards(updatedFlashcards);
       setCard(updatedFlashcards[index]);
+      setShowMeHow(false);
       return;
     }
 
     await new Promise((resolve) => setTimeout(resolve, 300));
     if (updatedFlashcards.every((currentCard) => currentCard.status === "pass" || currentCard.status === "fail")) {
-      const skills = updatedFlashcards.reduce<Record<string, number>>((summary, currentCard) => {
-        const cardMetadata = currentCard as typeof currentCard & { skill?: string };
-        const skill = cardMetadata.skill ?? "general-practice";
-        summary[skill] = (summary[skill] ?? 0) + 1;
-        return summary;
-      }, {});
-      setSessionSummary(Object.entries(skills).map(([skill, count]) => `${skill}: ${count > 0 ? "Strong" : "Practice again"}`));
+      const summaryEntries = Object.entries(skillStats).map(([skill, stats]) => `${skill}: ${getSkillSummary(stats)}`);
+      setSessionSummary(summaryEntries.length > 0 ? summaryEntries : ["general-practice: Practice again"]);
       setSessionStarted(false);
       setSessionFinished(true);
       setUserInput("");
@@ -338,6 +377,11 @@ export default function Home() {
   const multiplicationSettings = activeSettings.kind === "multiplication" ? activeSettings as MultiplicationSettings : null;
   const decimalSettings = activeSettings.kind === "decimal" ? activeSettings as DecimalSettings : null;
   const preAlgebraSettings = activeSettings.kind === "pre-algebra" ? activeSettings as PreAlgebraSettings : null;
+  const activeCardMetadata = card as typeof card & {
+    hint?: string;
+    explanation?: string;
+    skill?: string;
+  };
 
   return (
     <main className="flex min-h-screen flex-col items-center py-4 px-4 sm:p-6 md:py-10 md:px-8">
@@ -376,8 +420,16 @@ export default function Home() {
 
         {helpMessage && (
           <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
-            <p className="font-semibold">Hint</p>
+            <p className="font-semibold">{showMeHow ? "Show Me How" : "Hint"}</p>
             <p>{helpMessage}</p>
+            {!showMeHow && activeCardMetadata.hint && (
+              <button
+                onClick={() => handleButtonClick("show-me-how")}
+                className="mt-3 rounded-md bg-amber-600 px-3 py-2 text-xs font-bold uppercase tracking-wide text-white"
+              >
+                Show Me How
+              </button>
+            )}
           </div>
         )}
 

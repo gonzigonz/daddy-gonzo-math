@@ -195,3 +195,144 @@ variables, and equations---not as a requirement to cover an entire
 standards year.
 
 Reference: https://corestandards.org/mathematics-standards/
+
+## PR #5 Review — Changes Requested
+
+The overall architecture is heading in the right direction, but please address the following before merge.
+
+### 1. Implement the specified remediation flow
+
+The current Pre-Algebra mastery behavior escalates to "check your notes / ask a teacher or parent" too early.
+
+Required flow for concept cards:
+
+1. First incorrect attempt:
+   - show the card's specific `hint`
+   - do not reveal the answer
+   - allow another attempt
+
+2. If still incorrect:
+   - expose a **Show Me How** action
+
+3. Show Me How:
+   - display the card's `explanation`
+   - keep the explanation concise
+   - then allow the session to continue
+
+4. After Show Me How:
+   - schedule or prioritize another question with the same
+     `skill` / `questionFamily` when practical
+
+Do not send the learner directly to the teacher/parent guidance after the first mistake.
+
+### 2. Repeated-difficulty escalation
+
+Teacher / parent / class-note guidance should happen only after repeated difficulty with the same skill.
+
+Please introduce a small configurable threshold rather than tying escalation to a single incorrect answer.
+
+### 3. Fix the skill summary
+
+The current summary effectively marks every encountered skill as Strong because it only counts how many questions belong to that skill.
+
+Track useful session information per skill, such as:
+- attempts
+- correct answers
+- incorrect answers
+- hint usage
+- Show Me How usage
+
+Then classify the skill using that information.
+
+A simple first version is enough, for example:
+- Strong: independently correct with little/no help
+- Practice again: repeated mistakes or explanation usage
+
+Do not build a large analytics system.
+
+### 4. Complete Level 1 coverage
+
+Signed Number Sense should include all requested families:
+- positive / negative / zero recognition
+- compare integers
+- order small sets of integers
+- absolute value
+- simple signed addition/subtraction
+
+The current deck mostly covers arithmetic and absolute value.
+
+Because the existing answer UI is numeric, please choose a clean implementation pattern for recognition questions rather than silently omitting them. Reuseable multiple-choice support is acceptable if it fits the architecture.
+
+### 5. Complete Level 2 coverage
+
+Algebra Language should include:
+- identify the variable
+- identify the coefficient
+- identify the constant
+- interpret implicit multiplication
+- evaluate a simple expression after substitution
+
+The current implementation is primarily substitution/evaluation.
+
+Please add the missing vocabulary question families.
+
+### 6. Refine Level 4
+
+Equivalent Expressions should emphasize:
+- distributive-property equivalence
+- combining like terms
+- recognizing equivalent forms
+- simple commutative / associative relationships
+
+Avoid turning most of this level into another substitution/evaluation deck.
+
+### 7. Practice vs Mastery behavior
+
+Please review `shouldAdvanceAfterAnswer`.
+
+The UI currently says:
+
+Practice:
+"Keep moving and revisit missed questions later."
+
+Mastery:
+"Stay on the question until it makes sense."
+
+But the current helper advances only when the answer is correct in both modes.
+
+Make the implementation and UI semantics consistent.
+
+### 8. UAT coverage
+
+Update UAT.md to explicitly test:
+
+- first miss shows Hint
+- hint does not reveal answer
+- second-stage Show Me How is available
+- worked explanation is correct
+- similar-skill retry occurs when practical
+- repeated same-skill difficulty triggers notes/teacher/parent guidance
+- a single miss does NOT trigger escalation
+- skill summary reflects actual performance/help usage
+- Practice and Mastery behave according to their descriptions
+- existing arithmetic cards remain unchanged
+
+### 9. Tests
+
+Add automated tests where practical for:
+- remediation state progression
+- escalation threshold
+- skill summary calculation
+- Practice vs Mastery advancement
+- question-family coverage for Levels 1, 2 and 4
+- same-skill retry selection
+
+Please keep the current architecture where possible. This should be a correction/completion pass, not a rewrite.
+
+After changes, run:
+- npm run typecheck
+- npm run lint
+- npm run build
+- applicable tests
+
+Then summarize what changed and any deliberate deviations from the PR requirements.

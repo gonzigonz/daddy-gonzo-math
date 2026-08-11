@@ -7,8 +7,8 @@ test('wrong answers do not auto-advance in either mode', () => {
   assert.equal(shouldAdvanceAfterAnswer('mastery', false), false);
 });
 
-test('pre-algebra defaults to mastery mode for conceptual work', () => {
-  assert.equal(getDefaultSessionMode('pre-algebra-readiness'), 'mastery');
+test('pre-algebra opens in practice mode by default', () => {
+  assert.equal(getDefaultSessionMode('pre-algebra-readiness'), 'practice');
   assert.equal(getDefaultSessionMode('addition-subtraction'), 'practice');
 });
 
