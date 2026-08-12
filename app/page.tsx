@@ -17,6 +17,7 @@ import {
   SkillStats,
   getDefaultSessionMode,
   getHintMessage,
+  getShowMeHowMessage,
   getSkillSummary,
   isObviousAnswerMistake,
   shouldAdvanceAfterAnswer,
@@ -161,7 +162,8 @@ export default function Home() {
 
     if (value === "show-me-how") {
       setShowMeHow(true);
-      setHelpMessage(cardMetadata.explanation ?? cardMetadata.hint ?? "Try simplifying the expression one step at a time.");
+      const practiceExample = skill === "decimal" ? "3.6 + 12.5 = (3 + 12) + (0.6 + 0.5) = 15 + 1.1 = 16.1." : undefined;
+      setHelpMessage(getShowMeHowMessage(skill, cardMetadata.hint, cardMetadata.explanation, practiceExample));
       recordSkillAttempt(skill, false, true, true);
       return;
     }
@@ -190,7 +192,8 @@ export default function Home() {
       setFlashCards(updatedFlashcards);
       setCard(updatedFlashcards[index]);
       setUserInput(nextInput);
-      setHelpMessage(getHintMessage(sessionMode, skill, cardMetadata.hint, cardMetadata.explanation, skillStats[skill]));
+      const practiceExample = skill === "decimal" ? "3.6 + 12.5 = (3 + 12) + (0.6 + 0.5) = 15 + 1.1 = 16.1." : undefined;
+      setHelpMessage(getHintMessage(sessionMode, skill, cardMetadata.hint, cardMetadata.explanation, skillStats[skill], practiceExample));
       recordSkillAttempt(skill, false, true, false);
       return;
     }
@@ -220,7 +223,8 @@ export default function Home() {
       count.current += 1;
 
       const stats = skillStats[skill] ?? { attempts: 0, correct: 0, incorrect: 0, hintUsage: 0, showMeHowUsage: 0 };
-      setHelpMessage(getHintMessage(sessionMode, skill, cardMetadata.hint, cardMetadata.explanation, stats));
+      const practiceExample = skill === "decimal" ? "3.6 + 12.5 = (3 + 12) + (0.6 + 0.5) = 15 + 1.1 = 16.1." : undefined;
+      setHelpMessage(getHintMessage(sessionMode, skill, cardMetadata.hint, cardMetadata.explanation, stats, practiceExample));
       setFlashCards(updatedFlashcards);
       setCard(updatedFlashcards[index]);
       setShowMeHow(false);

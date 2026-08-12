@@ -51,12 +51,30 @@ export const getRepeatedDifficultyMessage = (stats?: Partial<SkillStats>, skill?
   return null;
 };
 
+export const getShowMeHowMessage = (
+  skill?: string,
+  hint?: string,
+  explanation?: string,
+  example?: string,
+): string => {
+  const decimalExample = example ?? '3.6 + 12.5 = (3 + 12) + (0.6 + 0.5) = 15 + 1.1 = 16.1.';
+  const baseExplanation = explanation ?? hint ?? 'Break the problem into smaller steps.';
+
+  if (skill === 'decimal') {
+    return `${baseExplanation} Example: ${decimalExample} If you are helping a student, show them how to split the decimal into whole numbers and tenths, then combine the parts. A teacher or parent can help explain this idea.`;
+  }
+
+  const supportText = explanation ?? hint ?? 'Use the idea behind the problem and check your notes or ask a teacher or parent for help.';
+  return `${supportText} A teacher or parent can help explain this idea.`;
+};
+
 export const getHintMessage = (
   mode: SessionMode,
   skill?: string,
   hint?: string,
   explanation?: string,
   stats?: Partial<SkillStats>,
+  example?: string,
 ): string => {
   const repeatedDifficultyMessage = getRepeatedDifficultyMessage(stats, skill);
   if (repeatedDifficultyMessage) {
@@ -64,7 +82,14 @@ export const getHintMessage = (
   }
 
   if (mode === 'practice') {
-    return hint ?? explanation ?? 'Try simplifying the expression one step at a time.';
+    const decimalExample = example ?? '3.6 + 12.5 = (3 + 12) + (0.6 + 0.5) = 15 + 1.1 = 16.1.';
+    const baseHint = hint ?? explanation ?? 'Try simplifying the expression one step at a time.';
+
+    if (skill === 'decimal') {
+      return `${baseHint} Example: ${decimalExample}`;
+    }
+
+    return baseHint;
   }
 
   if (skill) {

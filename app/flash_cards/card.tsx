@@ -152,19 +152,34 @@ export class DivisionCard extends ArithmeticCard {
 }
 
 export class DecimalAdditionCard extends ArithmeticCard {
+    readonly skill?: string;
+    readonly questionFamily?: string;
+    readonly hint?: string;
+    readonly explanation?: string;
+
     constructor(
         readonly term1: number,
         readonly term2: number,
         readonly precision: number = 1,
+        metadata: QuestionMetadata = {},
     ) {
         super();
+        this.skill = metadata.skill;
+        this.questionFamily = metadata.questionFamily;
+        this.hint = metadata.hint;
+        this.explanation = metadata.explanation;
     }
 
     answer(): string {
         return ((this.term1 + this.term2) / 10 ** this.precision).toFixed(this.precision);
     }
     clone(): ICard {
-        const card = new DecimalAdditionCard(this.term1, this.term2, this.precision);
+        const card = new DecimalAdditionCard(this.term1, this.term2, this.precision, {
+            skill: this.skill,
+            questionFamily: this.questionFamily,
+            hint: this.hint,
+            explanation: this.explanation,
+        });
         card.status = this.status;
         return card;
     }
