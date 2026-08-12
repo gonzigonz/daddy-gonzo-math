@@ -17,6 +17,7 @@ import {
   SkillStats,
   getDefaultSessionMode,
   getHintMessage,
+  getShowMeHowMessage,
   getSkillSummary,
   isObviousAnswerMistake,
   shouldAdvanceAfterAnswer,
@@ -162,7 +163,7 @@ export default function Home() {
     if (value === "show-me-how") {
       setShowMeHow(true);
       const practiceExample = skill === "decimal" ? "3.6 + 12.5 = (3 + 12) + (0.6 + 0.5) = 15 + 1.1 = 16.1." : undefined;
-      setHelpMessage(getHintMessage(sessionMode, skill, cardMetadata.hint, cardMetadata.explanation, skillStats[skill], practiceExample));
+      setHelpMessage(getShowMeHowMessage(skill, cardMetadata.hint, cardMetadata.explanation, practiceExample));
       recordSkillAttempt(skill, false, true, true);
       return;
     }

@@ -146,7 +146,12 @@ const buildDecimalCards = (settings: DecimalSettings): ICard[] => {
                     const hasCarry = hasDecimalCarry(decimalA, decimalB, settings.precision);
 
                     if (hasCarry === (settings.carry === "carry")) {
-                        cards.push(new DecimalAdditionCard(scaledA, scaledB, precision));
+                        cards.push(new DecimalAdditionCard(scaledA, scaledB, precision, {
+                            skill: "decimal",
+                            questionFamily: "decimal-addition",
+                            hint: "Add the whole numbers and decimal parts separately. Example: 3.6 + 12.5 = (3 + 12) + (0.6 + 0.5) = 15 + 1.1 = 16.1.",
+                            explanation: "Break each decimal into whole-number and tenths parts. 3.6 + 12.5 = (3 + 12) + (0.6 + 0.5) = 15 + 1.1 = 16.1.",
+                        }));
                     }
                 }
             }
